@@ -1,0 +1,24 @@
+{
+	"files.associations": {
+		"*.css": "tailwindcss"
+	},
+	"prettier.documentSelectors": ["**/*.svelte"],
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"[svelte]": {
+		"editor.defaultFormatter": "svelte.svelte-vscode"
+	},
+	"eslint.validate": ["javascript", "javascriptreact", "svelte"],
+	"editor.codeActionsOnSave": {
+		"source.fixAll": "explicit"
+	},
+	"[json]": {
+		"editor.defaultFormatter": "vscode.json-language-features"
+	},
+	"json.schemas": [
+		{
+			"fileMatch": ["components.json"],
+			"url": "https://shadcn-svelte.com/schema.json"
+		}
+	]
+}
