@@ -1,42 +1,80 @@
-# sv
+# SvelteKit SPA Starter
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A minimal SvelteKit Single Page Application starter template with TypeScript, Tailwind CSS v4, and essential tooling pre-configured.
 
-## Creating a project
+## Tech Stack
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **SvelteKit** (static adapter, SPA mode)
+- **Svelte 5** (runes enabled)
+- **TypeScript**
+- **Tailwind CSS v4** (with typography & forms plugins)
+- **Bits UI** — headless component library
+- **AG Grid** — data grid
+- **Fuse.js** — fuzzy search
+- **Vitest** — unit testing
+- **ESLint + Prettier** — linting & formatting
+
+## Getting Started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) v18+
+- npm
+
+### Clone & Install
 
 ```sh
-# create a new project
-npx sv create my-app
+git clone git@github.com:dhinesh03/svelte-kit-spa-starter.git
+cd svelte-kit-spa-starter
+npm install
 ```
 
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.12.7 create --template minimal --types ts --add prettier eslint vitest="usages:unit" tailwindcss="plugins:typography,forms" sveltekit-adapter="adapter:static" devtools-json mcp="ide:claude-code,vscode+setup:remote" --install npm sv-starter
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+### Development
 
 ```sh
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-To create a production version of your app:
+### Build
 
 ```sh
 npm run build
 ```
 
-You can preview the production build with `npm run preview`.
+The static output is generated in the `build/` directory, ready to be deployed to any static hosting provider (Vercel, Netlify, GitHub Pages, etc.).
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+Preview the production build locally:
+
+```sh
+npm run preview
+```
+
+## Available Scripts
+
+| Script              | Description                   |
+| ------------------- | ----------------------------- |
+| `npm run dev`       | Start dev server              |
+| `npm run build`     | Build for production          |
+| `npm run preview`   | Preview production build      |
+| `npm run check`     | Run svelte-check              |
+| `npm run lint`      | Check formatting & linting    |
+| `npm run lint:fix`  | Auto-fix formatting & linting |
+| `npm run format`    | Format with Prettier          |
+| `npm run test`      | Run unit tests                |
+| `npm run test:unit` | Run unit tests in watch mode  |
+
+## Project Structure
+
+```
+src/
+├── lib/          # Shared components, utilities, and stores
+├── routes/       # SvelteKit file-based routing
+└── app.html      # HTML template
+static/           # Static assets
+```
+
+## License
+
+MIT
