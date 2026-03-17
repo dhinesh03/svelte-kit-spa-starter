@@ -1,6 +1,7 @@
 import { makeDebounce } from '$lib/helpers';
 import { createGrid, type GridApi, type GridOptions } from 'ag-grid-community';
-import { colorSchemeLight, themeQuartz } from 'ag-grid-community';
+import { colorSchemeDark, colorSchemeLight, themeQuartz } from 'ag-grid-community';
+import { mode } from 'mode-watcher';
 
 export const agGridTheme = themeQuartz.withParams({
 	fontSize: '12px',
@@ -12,6 +13,18 @@ export const agGridTheme = themeQuartz.withParams({
 const lightParams = {
 	headerBackgroundColor: '#F4F4F4'
 };
+
+const darkParams = {
+	headerBackgroundColor: '#1f1f1f'
+};
+
+function applyTheme(gridApi: GridApi, currentMode: string | undefined) {
+	const isDark = currentMode === 'dark';
+	const colorScheme = isDark ? colorSchemeDark : colorSchemeLight;
+	const params = isDark ? darkParams : lightParams;
+	const theme = agGridTheme.withPart(colorScheme).withParams(params);
+	gridApi.setGridOption('theme', theme);
+}
 
 // Attachment function to initialize the grid
 export function initAGgrid<T>(gridOptions: GridOptions<T>, onResize?: (api: GridApi) => void) {
@@ -28,9 +41,10 @@ export function initAGgrid<T>(gridOptions: GridOptions<T>, onResize?: (api: Grid
 
 		window.addEventListener('resize', debouncedResize);
 
-		// Set light theme
-		const theme = agGridTheme.withPart(colorSchemeLight).withParams(lightParams);
-		gridApi.setGridOption('theme', theme);
+		// Reactively apply theme based on mode-watcher state
+		$effect(() => {
+			applyTheme(gridApi, mode.current);
+		});
 
 		// Return cleanup function for @attach
 		return () => {
