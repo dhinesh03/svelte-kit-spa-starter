@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx eslint:*)",
+      "Bash(npx eslint-plugin-perfectionist:*)",
+      "mcp__svelte__list-sections",
+      "mcp__svelte__svelte-autofixer",
+      "Bash(npm install:*)",
+      "Bash(git remote:*)",
+      "Bash(ls:*)",
+      "Bash(git diff:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(tree:*)",
+      "Bash(npm run check:*)",
+      "Bash(mkdir:*)",
+      "Bash(npx tsc:*)",
+      "mcp__svelte__svelte-autofixer",
+      "mcp__svelte__list-sections",
+      "mcp__svelte__get-documentation",
+      "Bash(cat:*)",
+      "Bash(npx svelte-check:*)",
+      "Bash(pkill:*)",
+      "Bash(git status:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run build:*)",
+      "Bash(node -e:*)",
+      "WebFetch(domain:www.runed.dev)",
+      "Bash(ps aux:*)",
+      "Skill(update-config)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "svelte"
+  ],
+  "enabledPlugins": {
+    "toolkit-skills@spences10-claude-code-toolkit": true,
+    "svelte-skills@spences10-svelte-skills-kit": true,
+    "everything-claude-code@everything-claude-code": true
+  }
+}
