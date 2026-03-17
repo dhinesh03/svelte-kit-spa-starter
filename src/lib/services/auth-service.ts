@@ -8,6 +8,7 @@
 import { createSubscriber } from 'svelte/reactivity';
 
 import {
+	AuthError,
 	BrowserAuthError,
 	EventType,
 	InteractionRequiredAuthError,
@@ -30,7 +31,7 @@ export interface AuthServiceConfig {
 	scopes: readonly string[];
 	redirectUri?: string;
 	postLogoutRedirectUri?: string;
-	cacheLocation?: 'localStorage' | 'sessionStorage';
+	cacheLocation?: 'localStorage' | 'sessionStorage' | 'memoryStorage';
 	storeAuthStateInCookie?: boolean;
 	navigateToLoginRequestUrl?: boolean;
 	enableLogging?: boolean;
@@ -95,7 +96,7 @@ class AuthService {
 
 	constructor(config: AuthServiceConfig, navigationClient?: NavigationClient) {
 		this.validateConfig(config);
-		this.config = { enableSsoSilent: true, storeAuthStateInCookie: false, navigateToLoginRequestUrl: false, ...config };
+		this.config = { enableSsoSilent: false, storeAuthStateInCookie: false, navigateToLoginRequestUrl: false, ...config };
 
 		this.msalInstance = new PublicClientApplication(this.buildMsalConfig(this.config));
 
@@ -222,16 +223,11 @@ class AuthService {
 		if (!isBrowser) return;
 
 		try {
-			for (const storage of [sessionStorage, localStorage]) {
-				const keysToRemove = [];
-				for (let i = 0; i < storage.length; i++) {
-					const key = storage.key(i);
-					if (key?.startsWith('msal.')) {
-						keysToRemove.push(key);
-					}
-				}
-				keysToRemove.forEach((key) => storage.removeItem(key));
-			}
+			// Only remove the interaction status key, not the entire MSAL cache.
+			// MSAL stores the interaction lock under "msal.interaction.status" in sessionStorage.
+			// Removing all "msal.*" keys would destroy cached tokens and accounts.
+			const interactionKey = 'msal.interaction.status';
+			sessionStorage.removeItem(interactionKey);
 		} catch {
 			// Ignore storage errors
 		}
@@ -264,7 +260,7 @@ class AuthService {
 
 	private handleError(error: unknown): void {
 		const message = error instanceof Error ? error.message : 'An unknown error occurred';
-		const code = error instanceof BrowserAuthError ? error.errorCode : 'UNKNOWN_ERROR';
+		const code = error instanceof AuthError ? error.errorCode : 'UNKNOWN_ERROR';
 
 		this.log('error', { code, message, error });
 
@@ -409,7 +405,11 @@ class AuthService {
 			return response.accessToken;
 		} catch (error) {
 			if (error instanceof InteractionRequiredAuthError) {
-				await this.withStaleInteractionRecovery(() => this.msalInstance.acquireTokenRedirect(request));
+				const redirectRequest: RedirectRequest = {
+					scopes: request.scopes,
+					account: request.account
+				};
+				await this.withStaleInteractionRecovery(() => this.msalInstance.acquireTokenRedirect(redirectRequest));
 				// Redirect will navigate away; throw to prevent callers from using an empty token
 				throw new AuthServiceError('Interactive authentication required. Redirect in progress.', 'REDIRECT_IN_PROGRESS', error);
 			}

@@ -96,7 +96,7 @@
 	}
 </script>
 
-<div class="mx-auto max-w-4xl space-y-12 p-8">
+<div class="mx-auto max-w-4xl space-y-12 overflow-y-auto p-8">
 	<div>
 		<h1 class="text-3xl font-bold tracking-tight">Component Showcase</h1>
 		<p class="mt-2 text-muted-foreground">Interactive examples of custom components.</p>
@@ -115,13 +115,7 @@
 					<Card.Description>Simple select-like dropdown for small lists.</Card.Description>
 				</Card.Header>
 				<Card.Content class="space-y-3">
-					<ComboBox
-						items={statuses}
-						type="single"
-						bind:value={selectValue}
-						placeholder="Set status..."
-						searchable={false}
-					/>
+					<ComboBox items={statuses} type="single" bind:value={selectValue} placeholder="Set status..." searchable={false} />
 					{#if selectValue}
 						<p class="text-sm text-muted-foreground">Status: <span class="font-medium text-foreground">{selectValue}</span></p>
 					{/if}
