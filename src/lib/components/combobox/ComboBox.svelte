@@ -143,7 +143,7 @@
 		clearAllLabel?: string;
 		/** Accessible label for the trigger button */
 		'aria-label'?: string;
-		/** Callback when value changes */
+		/** Callback when value changes - receives string | undefined for single, string[] for multiple */
 		onchange?: (value: string | string[] | undefined) => void;
 	};
 
@@ -178,8 +178,14 @@
 	let visibleCount = $state<number>(Infinity);
 	let triggerWidth = $state(0);
 
-	// Calculate tag max-width: trigger width minus padding (left: 12px, right: 36px for chevron) minus 20px buffer
-	const tagMaxWidth = $derived(Math.max(100, triggerWidth - 68));
+	// Trigger horizontal padding reserved for left padding + chevron/clear buttons + buffer per size
+	const TRIGGER_PADDING: Record<ComboBoxSize, number> = {
+		xs: 52,
+		sm: 60,
+		default: 68,
+		lg: 68
+	};
+	const tagMaxWidth = $derived(Math.max(100, triggerWidth - TRIGGER_PADDING[size]));
 
 	// O(1) selection lookup
 	const selectedLookup = $derived.by(() => {
@@ -197,7 +203,7 @@
 
 	// Handle both single and multiple selection types
 	const selectedItem = $derived(type === 'single' ? items.find((f) => f.value === value) : undefined);
-	const selectedValue = $derived(selectedItem?.label);
+	const selectedLabel = $derived(selectedItem?.label);
 
 	const selectedValues = $derived.by(() => {
 		if (type === 'multiple' && Array.isArray(value) && value.length > 0) {
@@ -275,6 +281,10 @@
 		visibleCount = lastValidIndex;
 	}
 
+	// Note: These $effect blocks intentionally mutate $state (triggerWidth, visibleCount).
+	// DOM measurements (ResizeObserver, offsetTop/offsetWidth) are inherently imperative
+	// and cannot be expressed as $derived — $effect with cleanup is the correct pattern here.
+
 	// Track trigger width for dynamic tag max-width
 	$effect(() => {
 		if (!triggerRef) return;
@@ -339,7 +349,10 @@
 		return map;
 	});
 
-	// Stable group order derived from original items (not affected by search filtering)
+	// Stable group order derived from original items (not affected by search filtering).
+	// Caches the result and only recomputes when the group sequence actually changes.
+	let prevGroupKey = '';
+	let cachedGroupOrder: string[] = [];
 	const stableGroupOrder = $derived.by(() => {
 		const order: string[] = [];
 		const seen = Object.create(null) as Record<string, true>;
@@ -349,7 +362,12 @@
 				order.push(item.group);
 			}
 		}
-		return order;
+		const key = order.join('\0');
+		if (key !== prevGroupKey) {
+			prevGroupKey = key;
+			cachedGroupOrder = order;
+		}
+		return cachedGroupOrder;
 	});
 
 	// Create a flat list with group headers for virtualized rendering
@@ -435,6 +453,7 @@
 	}
 
 	function clearFiltered(e: Event) {
+		e.preventDefault();
 		e.stopPropagation();
 		if (type !== 'multiple' || !Array.isArray(value)) return;
 		const filteredLookup = Object.create(null) as Record<string, true>;
@@ -465,19 +484,35 @@
 		return groupItems.length > 0 && groupItems.every((item) => selectedLookup[item.value] === true);
 	}
 
-	function toggleGroup(groupName: string) {
+	function isGroupSomeSelected(groupName: string): boolean {
+		if (type !== 'multiple') return false;
+		return getGroupItems(groupName).some((item) => selectedLookup[item.value] === true);
+	}
+
+	function selectGroup(groupName: string) {
 		if (type !== 'multiple') return;
 		const currentValues = Array.isArray(value) ? value : [];
 		const groupValues = getGroupItems(groupName).map((item) => item.value);
-
-		if (isGroupAllSelected(groupName)) {
-			const removeLookup = Object.create(null) as Record<string, true>;
-			for (const v of groupValues) removeLookup[v] = true;
-			value = currentValues.filter((v) => !removeLookup[v]);
-		} else {
-			value = [...currentValues, ...groupValues.filter((v) => !selectedLookup[v])];
-		}
+		value = [...currentValues, ...groupValues.filter((v) => !selectedLookup[v])];
 		onchange?.(value);
+	}
+
+	function clearGroup(groupName: string) {
+		if (type !== 'multiple' || !Array.isArray(value)) return;
+		const removeLookup = Object.create(null) as Record<string, true>;
+		for (const v of getGroupItems(groupName).map((item) => item.value)) removeLookup[v] = true;
+		value = value.filter((v) => !removeLookup[v]);
+		onchange?.(value);
+	}
+
+	// ── Keyboard ─────────────────────────────────────────────────────────
+
+	function handleTriggerKeydown(e: KeyboardEvent) {
+		if (e.key === 'Backspace' && type === 'multiple' && Array.isArray(value) && value.length > 0 && !open) {
+			e.preventDefault();
+			value = value.slice(0, -1);
+			onchange?.(value);
+		}
 	}
 
 	// ── Misc ──────────────────────────────────────────────────────────────
@@ -488,23 +523,36 @@
 		<div class={cn('flex items-center justify-between', s.groupHeader)}>
 			<span class={cn('font-semibold text-muted-foreground', s.groupText)}>{item.group}</span>
 			{#if type === 'multiple'}
-				<button
-					type="button"
-					class={cn('cursor-pointer text-muted-foreground hover:text-foreground', s.groupText)}
-					aria-label={isGroupAllSelected(item.group) ? `Clear ${item.group}` : `Select all in ${item.group}`}
-					onclick={() => toggleGroup(item.group)}
-				>
-					{isGroupAllSelected(item.group) ? 'Clear' : 'Select all'}
-				</button>
+				<div class="flex gap-2">
+					<button
+						type="button"
+						class={cn(
+							'cursor-pointer rounded font-medium text-foreground underline-offset-2 hover:underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-default disabled:text-muted-foreground disabled:no-underline disabled:opacity-50',
+							s.groupText
+						)}
+						aria-label={`Select all in ${item.group}`}
+						disabled={isGroupAllSelected(item.group)}
+						onclick={() => selectGroup(item.group)}
+					>
+						{selectAllLabel}
+					</button>
+					<button
+						type="button"
+						class={cn(
+							'cursor-pointer rounded font-medium text-foreground underline-offset-2 hover:underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-default disabled:text-muted-foreground disabled:no-underline disabled:opacity-50',
+							s.groupText
+						)}
+						aria-label={`Clear ${item.group}`}
+						disabled={!isGroupSomeSelected(item.group)}
+						onclick={() => clearGroup(item.group)}
+					>
+						{clearAllLabel}
+					</button>
+				</div>
 			{/if}
 		</div>
 	{:else}
-		<Command.Item
-			value={item.value}
-			disabled={item.disabled}
-			onSelect={() => handleItemSelect(item.value)}
-			title={item.label}
-		>
+		<Command.Item value={item.value} disabled={item.disabled} onSelect={() => handleItemSelect(item.value)} title={item.label}>
 			<CheckIcon class={cn(!isSelected(item.value) && 'text-transparent')} />
 			{#if itemSnippet}
 				{@render itemSnippet(item)}
@@ -536,13 +584,14 @@
 				role="combobox"
 				aria-expanded={open}
 				aria-label={ariaLabel ?? placeholder}
+				onkeydown={handleTriggerKeydown}
 				{disabled}
 			>
 				{#if type === 'single'}
 					{#if selectedItem && selectedSnippet}
 						<span class="min-w-0 flex-1 truncate text-left">{@render selectedSnippet(selectedItem)}</span>
 					{:else}
-						<span class="min-w-0 flex-1 truncate text-left">{selectedValue || placeholder}</span>
+						<span class="min-w-0 flex-1 truncate text-left">{selectedLabel || placeholder}</span>
 					{/if}
 				{:else if selectedValues.length > 0}
 					<div
@@ -642,7 +691,12 @@
 						</div>
 					</div>
 				{/if}
-				<Command.List class="overflow-hidden px-1" style={searchable ? `max-height: ${listHeight}` : `max-height: min(${listHeight}, var(--bits-popover-content-available-height, ${listHeight}))`}>
+				<Command.List
+					class="overflow-hidden px-1"
+					style={searchable
+						? `max-height: ${listHeight}`
+						: `max-height: min(${listHeight}, var(--bits-popover-content-available-height, ${listHeight}))`}
+				>
 					<Command.Empty>{emptyText}</Command.Empty>
 					<Command.Group>
 						{#if searchable}
