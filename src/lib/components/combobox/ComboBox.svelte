@@ -129,6 +129,8 @@
 		selectedSnippet?: Snippet<[T]>;
 		/** Placeholder text when no item is selected */
 		placeholder?: string;
+		/** Whether to show the search input */
+		searchable?: boolean;
 		/** Text for search input placeholder */
 		searchPlaceholder?: string;
 		/** Text shown when no items match the search */
@@ -159,6 +161,7 @@
 		itemSnippet,
 		selectedSnippet,
 		placeholder = 'Select an item...',
+		searchable = true,
 		searchPlaceholder = 'Search...',
 		emptyText = 'No items found.',
 		ungroupedLabel = 'Other',
@@ -480,6 +483,38 @@
 	// ── Misc ──────────────────────────────────────────────────────────────
 </script>
 
+{#snippet itemRow(item: FlatListItem<T>)}
+	{#if isGroupHeader(item)}
+		<div class={cn('flex items-center justify-between', s.groupHeader)}>
+			<span class={cn('font-semibold text-muted-foreground', s.groupText)}>{item.group}</span>
+			{#if type === 'multiple'}
+				<button
+					type="button"
+					class={cn('cursor-pointer text-muted-foreground hover:text-foreground', s.groupText)}
+					aria-label={isGroupAllSelected(item.group) ? `Clear ${item.group}` : `Select all in ${item.group}`}
+					onclick={() => toggleGroup(item.group)}
+				>
+					{isGroupAllSelected(item.group) ? 'Clear' : 'Select all'}
+				</button>
+			{/if}
+		</div>
+	{:else}
+		<Command.Item
+			value={item.value}
+			disabled={item.disabled}
+			onSelect={() => handleItemSelect(item.value)}
+			title={item.label}
+		>
+			<CheckIcon class={cn(!isSelected(item.value) && 'text-transparent')} />
+			{#if itemSnippet}
+				{@render itemSnippet(item)}
+			{:else}
+				<span class="min-w-0 flex-1 truncate">{item.label}</span>
+			{/if}
+		</Command.Item>
+	{/if}
+{/snippet}
+
 <Popover.Root
 	bind:open
 	onOpenChange={(isOpen) => {
@@ -582,7 +617,9 @@
 	<Popover.Portal>
 		<Popover.Content onCloseAutoFocus={(e) => e.preventDefault()} class="w-(--bits-popover-anchor-width) p-0">
 			<Command.Root shouldFilter={false}>
-				<Command.Input placeholder={searchPlaceholder} bind:value={searchValue} {...inputProps} />
+				{#if searchable}
+					<Command.Input placeholder={searchPlaceholder} bind:value={searchValue} {...inputProps} />
+				{/if}
 				{#if type === 'multiple' && filteredItems.length > 0}
 					<div class={cn('flex items-center justify-between border-b', s.statusBar)}>
 						<span class={cn('text-muted-foreground', s.statusText)}>
@@ -605,46 +642,24 @@
 						</div>
 					</div>
 				{/if}
-				<Command.List class="overflow-hidden px-1" style="max-height: {listHeight}">
+				<Command.List class="overflow-hidden px-1" style={searchable ? `max-height: ${listHeight}` : `max-height: min(${listHeight}, var(--bits-popover-content-available-height, ${listHeight}))`}>
 					<Command.Empty>{emptyText}</Command.Empty>
 					<Command.Group>
-						<VList
-							data={flatListWithGroups}
-							style="height: {listHeight}"
-							getKey={(item: FlatListItem<T>) => (isGroupHeader(item) ? `__group__${item.group}` : item.value)}
-						>
-							{#snippet children(item: FlatListItem<T>)}
-								{#if isGroupHeader(item)}
-									<div class={cn('flex items-center justify-between', s.groupHeader)}>
-										<span class={cn('font-semibold text-muted-foreground', s.groupText)}>{item.group}</span>
-										{#if type === 'multiple'}
-											<button
-												type="button"
-												class={cn('cursor-pointer text-muted-foreground hover:text-foreground', s.groupText)}
-												aria-label={isGroupAllSelected(item.group) ? `Clear ${item.group}` : `Select all in ${item.group}`}
-												onclick={() => toggleGroup(item.group)}
-											>
-												{isGroupAllSelected(item.group) ? 'Clear' : 'Select all'}
-											</button>
-										{/if}
-									</div>
-								{:else}
-									<Command.Item
-										value={item.value}
-										disabled={item.disabled}
-										onSelect={() => handleItemSelect(item.value)}
-										title={item.label}
-									>
-										<CheckIcon class={cn(!isSelected(item.value) && 'text-transparent')} />
-										{#if itemSnippet}
-											{@render itemSnippet(item)}
-										{:else}
-											<span class="min-w-0 flex-1 truncate">{item.label}</span>
-										{/if}
-									</Command.Item>
-								{/if}
-							{/snippet}
-						</VList>
+						{#if searchable}
+							<VList
+								data={flatListWithGroups}
+								style="height: {listHeight}"
+								getKey={(item: FlatListItem<T>) => (isGroupHeader(item) ? `__group__${item.group}` : item.value)}
+							>
+								{#snippet children(item: FlatListItem<T>)}
+									{@render itemRow(item)}
+								{/snippet}
+							</VList>
+						{:else}
+							{#each flatListWithGroups as item (isGroupHeader(item) ? `__group__${item.group}` : item.value)}
+								{@render itemRow(item)}
+							{/each}
+						{/if}
 					</Command.Group>
 				</Command.List>
 			</Command.Root>

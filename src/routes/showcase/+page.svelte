@@ -37,7 +37,16 @@
 		{ value: 'redis', label: 'Redis', group: 'Database' }
 	];
 
+	const statuses: ItemType[] = [
+		{ value: 'backlog', label: 'Backlog' },
+		{ value: 'todo', label: 'Todo' },
+		{ value: 'in-progress', label: 'In Progress' },
+		{ value: 'done', label: 'Done' },
+		{ value: 'cancelled', label: 'Cancelled' }
+	];
+
 	let singleValue = $state<string | undefined>(undefined);
+	let selectValue = $state<string | undefined>(undefined);
 	let multiValue = $state<string[]>([]);
 	let groupedValue = $state<string[]>([]);
 
@@ -99,6 +108,26 @@
 		<p class="text-muted-foreground">A searchable dropdown with single and multiple selection, grouping, and virtual scrolling.</p>
 
 		<div class="grid gap-6 md:grid-cols-2">
+			<!-- Select (No Search) -->
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>Select (No Search)</Card.Title>
+					<Card.Description>Simple select-like dropdown for small lists.</Card.Description>
+				</Card.Header>
+				<Card.Content class="space-y-3">
+					<ComboBox
+						items={statuses}
+						type="single"
+						bind:value={selectValue}
+						placeholder="Set status..."
+						searchable={false}
+					/>
+					{#if selectValue}
+						<p class="text-sm text-muted-foreground">Status: <span class="font-medium text-foreground">{selectValue}</span></p>
+					{/if}
+				</Card.Content>
+			</Card.Root>
+
 			<!-- Single Selection -->
 			<Card.Root>
 				<Card.Header>
