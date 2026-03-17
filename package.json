@@ -54,6 +54,7 @@
 		"vitest": "^4.1.0"
 	},
 	"dependencies": {
+		"@azure/msal-browser": "^4.29.1",
 		"@fontsource-variable/inter": "^5.2.8",
 		"ag-grid-community": "^35.1.0",
 		"bits-ui": "^2.16.3",
