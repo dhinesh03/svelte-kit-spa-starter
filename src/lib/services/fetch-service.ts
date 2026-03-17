@@ -2,7 +2,7 @@
  * @fileoverview A lightweight, type-safe HTTP client with cancellation, timeouts, and upload progress.
  */
 
-/** Options for HTTP requests */
+/** Public options for HTTP requests */
 interface RequestOptions extends Omit<RequestInit, 'signal'> {
 	/** Request timeout in milliseconds */
 	timeout?: number;
@@ -12,10 +12,14 @@ interface RequestOptions extends Omit<RequestInit, 'signal'> {
 	payload?: Record<string, unknown> | unknown[] | FormData;
 	/** External AbortSignal for cancellation */
 	signal?: AbortSignal;
-	/** Callback for upload progress (only works with FormData) */
-	onUploadProgress?: (progressEvent: ProgressEvent) => void;
 	/** Bypass browser cache */
 	forceRefresh?: boolean;
+}
+
+/** Internal options that include upload progress callback */
+interface InternalRequestOptions extends RequestOptions {
+	/** Callback for upload progress (only works with FormData) — internal use only */
+	onUploadProgress?: (progressEvent: ProgressEvent) => void;
 }
 
 /** Result of a successful HTTP request */
@@ -75,6 +79,14 @@ interface SSEOptions {
 /** Constructor type for EventSource with fetch option (requires polyfill) */
 type EventSourceConstructor = new (url: string | URL, init?: EventSourceInit & { fetch?: typeof fetch }) => EventSource;
 
+/** Prepared request configuration returned by buildRequestConfig */
+interface PreparedRequest {
+	url: string;
+	headers: Headers;
+	signal: AbortSignal;
+	fetchOptions: RequestInit;
+}
+
 /**
  * Extracts a user-facing error message from an API error response body.
  * Returns generic, user-friendly messages instead of detailed server errors.
@@ -128,6 +140,18 @@ function getErrorMessageFromBody(responseBody: unknown, status: number, statusTe
 			}
 			return 'An unexpected error occurred. Please try again.';
 	}
+}
+
+/**
+ * Throws a FetchError after reading and parsing the error response body.
+ */
+async function throwFetchError(response: Response): Promise<never> {
+	const contentType = response.headers.get('content-type');
+	const isJson = contentType?.includes('application/json') ?? false;
+	const responseBody = isJson ? await response.json() : await response.text();
+	const message = getErrorMessageFromBody(responseBody, response.status, response.statusText);
+
+	throw new FetchError(message, response.status, response.statusText, responseBody);
 }
 
 /**
@@ -217,6 +241,70 @@ class FetchService {
 	}
 
 	/**
+	 * Builds headers, resolves auth token, serializes body, and combines abort signals.
+	 * Shared by request() and download() to eliminate duplication.
+	 */
+	private async buildRequestConfig(
+		url: string,
+		options: InternalRequestOptions,
+		controller: AbortController,
+		acceptHeader: string
+	): Promise<PreparedRequest> {
+		const token = this.getAuthToken ? await this.getAuthToken() : null;
+
+		// Build headers
+		const headers = new Headers(this.defaultHeaders);
+		headers.set('Accept', acceptHeader);
+
+		if (options.headers) {
+			const customHeaders = new Headers(options.headers);
+			customHeaders.forEach((value, key) => headers.set(key, value));
+		}
+
+		if (token) {
+			headers.set('Authorization', `Bearer ${token}`);
+		}
+
+		// Extract custom options, pass rest to fetch
+		const { payload, signal: externalSignal, onUploadProgress: _, timeout: __, params: ___, forceRefresh, ...fetchOptions } = options;
+
+		// Warn in dev if payload is used with GET
+		if (import.meta.env.DEV && fetchOptions.method === 'GET' && payload) {
+			console.warn('FetchService: payload is ignored for GET requests. Use params instead.');
+		}
+
+		// Set body for non-GET requests
+		if (fetchOptions.method !== 'GET' && payload) {
+			if (payload instanceof FormData) {
+				fetchOptions.body = payload;
+			} else {
+				headers.set('Content-Type', 'application/json');
+				fetchOptions.body = JSON.stringify(payload);
+			}
+		}
+
+		// Combine all abort signals
+		const timeoutSignal = options.timeout ? AbortSignal.timeout(options.timeout) : undefined;
+		const signals: AbortSignal[] = [controller.signal];
+		if (timeoutSignal) signals.push(timeoutSignal);
+		if (externalSignal) signals.push(externalSignal);
+
+		const signal = signals.length === 1 ? signals[0] : AbortSignal.any(signals);
+
+		return {
+			url,
+			headers,
+			signal,
+			fetchOptions: {
+				...fetchOptions,
+				cache: forceRefresh ? 'reload' : 'default',
+				headers,
+				signal
+			}
+		};
+	}
+
+	/**
 	 * Parses XHR response headers into a Headers object.
 	 * Correctly handles header values containing ': '.
 	 */
@@ -258,29 +346,32 @@ class FetchService {
 			const xhr = new XMLHttpRequest();
 			let settled = false;
 
+			const cleanup = (): void => {
+				signal.removeEventListener('abort', abortHandler);
+				xhr.upload.removeEventListener('progress', progressHandler);
+			};
+
 			const abortHandler = (): void => {
 				if (settled) return;
 				settled = true;
+				cleanup();
 				xhr.abort();
 				reject(new DOMException('The operation was aborted.', 'AbortError'));
 			};
 
-			const cleanup = (): void => {
-				signal.removeEventListener('abort', abortHandler);
-			};
-
-			signal.addEventListener('abort', abortHandler);
-
-			xhr.upload.addEventListener('progress', (event) => {
+			const progressHandler = (event: ProgressEvent): void => {
 				if (event.lengthComputable) {
 					onUploadProgress(event);
 				}
-			});
+			};
+
+			signal.addEventListener('abort', abortHandler);
+			xhr.upload.addEventListener('progress', progressHandler);
 
 			xhr.addEventListener('load', () => {
-				cleanup();
 				if (settled) return;
 				settled = true;
+				cleanup();
 
 				resolve(
 					new Response(xhr.response, {
@@ -292,13 +383,11 @@ class FetchService {
 			});
 
 			xhr.addEventListener('error', () => {
-				cleanup();
 				if (settled) return;
 				settled = true;
+				cleanup();
 				reject(new TypeError('Network request failed'));
 			});
-
-			xhr.addEventListener('abort', cleanup);
 
 			xhr.open(method, url);
 
@@ -316,9 +405,8 @@ class FetchService {
 	/**
 	 * Core request method. Returns a cancellable request object.
 	 */
-	private request<T = unknown>(endpoint: string, options: RequestOptions = {}): CancellableRequest<T> {
+	private request<T = unknown>(endpoint: string, options: InternalRequestOptions = {}): CancellableRequest<T> {
 		const controller = new AbortController();
-		const timeoutSignal = options.timeout ? AbortSignal.timeout(options.timeout) : undefined;
 
 		const cancel = (reason?: string): void => {
 			controller.abort(reason);
@@ -327,52 +415,22 @@ class FetchService {
 		const url = this.buildUrl(endpoint) + this.toQueryString(options.params);
 
 		const requestPromise = async (): Promise<RequestResult<T>> => {
-			const token = this.getAuthToken ? await this.getAuthToken() : null;
-
-			// Build headers
-			const headers = new Headers(this.defaultHeaders);
-			headers.set('Accept', 'application/json');
-
-			if (options.headers) {
-				new Headers(options.headers).forEach((value, key) => headers.set(key, value));
-			}
-
-			if (token) {
-				headers.set('Authorization', `Bearer ${token}`);
-			}
-
-			// Extract custom options, pass rest to fetch
-			const { payload, signal: externalSignal, onUploadProgress, timeout: _, params: __, forceRefresh, ...fetchOptions } = options;
-
-			// Set body for non-GET requests
-			if (fetchOptions.method !== 'GET' && payload) {
-				if (payload instanceof FormData) {
-					fetchOptions.body = payload;
-				} else {
-					headers.set('Content-Type', 'application/json');
-					fetchOptions.body = JSON.stringify(payload);
-				}
-			}
-
-			// Combine all abort signals
-			const signals: AbortSignal[] = [controller.signal];
-			if (timeoutSignal) signals.push(timeoutSignal);
-			if (externalSignal) signals.push(externalSignal);
-
-			const signal = signals.length === 1 ? signals[0] : AbortSignal.any(signals);
+			const { headers, signal, fetchOptions } = await this.buildRequestConfig(url, options, controller, 'application/json');
 
 			// Make request
 			let response: Response;
 
-			if (onUploadProgress && payload instanceof FormData) {
-				response = await this.uploadWithProgress(url, headers, fetchOptions.method ?? 'POST', payload, signal, onUploadProgress);
-			} else {
-				response = await fetch(url, {
-					...fetchOptions,
-					cache: forceRefresh ? 'reload' : 'default',
+			if (options.onUploadProgress && options.payload instanceof FormData) {
+				response = await this.uploadWithProgress(
+					url,
 					headers,
-					signal
-				});
+					fetchOptions.method ?? 'POST',
+					options.payload,
+					signal,
+					options.onUploadProgress
+				);
+			} else {
+				response = await fetch(url, fetchOptions);
 			}
 
 			// Parse response
@@ -380,10 +438,7 @@ class FetchService {
 			const isJson = contentType?.includes('application/json') ?? false;
 
 			if (!response.ok) {
-				const responseBody = isJson ? await response.json() : await response.text();
-				const message = getErrorMessageFromBody(responseBody, response.status, response.statusText);
-
-				throw new FetchError(message, response.status, response.statusText, responseBody);
+				await throwFetchError(response);
 			}
 
 			// Handle empty responses (204 No Content, 205 Reset Content)
@@ -392,7 +447,6 @@ class FetchService {
 
 			let data: T;
 			if (isEmpty) {
-				// Note: For 204/205 responses, data will be null regardless of T
 				data = null as T;
 			} else if (isJson) {
 				data = (await response.json()) as T;
@@ -461,10 +515,8 @@ class FetchService {
 		let formData: FormData;
 
 		if (fileOrFormData instanceof FormData) {
-			// Use provided FormData directly
 			formData = fileOrFormData;
 		} else {
-			// Create FormData from File
 			formData = new FormData();
 			formData.append(options.fieldName ?? 'file', fileOrFormData);
 		}
@@ -485,7 +537,7 @@ class FetchService {
 				? (e: ProgressEvent) =>
 						onProgress({
 							loaded: e.loaded,
-							total: e.total || 0,
+							total: e.total ?? 0,
 							percentage: e.total ? Math.round((e.loaded / e.total) * 100) : 0
 						})
 				: undefined
@@ -495,13 +547,11 @@ class FetchService {
 	/**
 	 * Downloads a file by making a request and returning the raw Response.
 	 * Does not consume the response body, allowing the caller to extract blob/arrayBuffer/etc.
-	 * Use this for file downloads where you need access to Content-Disposition headers and blob data.
 	 * @param endpoint - API endpoint
 	 * @param options - Request options
 	 */
 	public download(endpoint: string, options: RequestOptions = {}): CancellableRequest<Response> {
 		const controller = new AbortController();
-		const timeoutSignal = options.timeout ? AbortSignal.timeout(options.timeout) : undefined;
 
 		const cancel = (reason?: string): void => {
 			controller.abort(reason);
@@ -510,59 +560,14 @@ class FetchService {
 		const url = this.buildUrl(endpoint) + this.toQueryString(options.params);
 
 		const requestPromise = async (): Promise<RequestResult<Response>> => {
-			const token = this.getAuthToken ? await this.getAuthToken() : null;
+			const { fetchOptions } = await this.buildRequestConfig(url, options, controller, '*/*');
 
-			// Build headers
-			const headers = new Headers(this.defaultHeaders);
-			headers.set('Accept', 'application/json');
+			const response = await fetch(url, fetchOptions);
 
-			if (options.headers) {
-				new Headers(options.headers).forEach((value, key) => headers.set(key, value));
-			}
-
-			if (token) {
-				headers.set('Authorization', `Bearer ${token}`);
-			}
-
-			// Extract custom options, pass rest to fetch
-			const { payload, signal: externalSignal, onUploadProgress: _, timeout: __, params: ___, forceRefresh, ...fetchOptions } = options;
-
-			// Set body for non-GET requests
-			if (fetchOptions.method !== 'GET' && payload) {
-				if (payload instanceof FormData) {
-					fetchOptions.body = payload;
-				} else {
-					headers.set('Content-Type', 'application/json');
-					fetchOptions.body = JSON.stringify(payload);
-				}
-			}
-
-			// Combine all abort signals
-			const signals: AbortSignal[] = [controller.signal];
-			if (timeoutSignal) signals.push(timeoutSignal);
-			if (externalSignal) signals.push(externalSignal);
-
-			const signal = signals.length === 1 ? signals[0] : AbortSignal.any(signals);
-
-			// Make request
-			const response = await fetch(url, {
-				...fetchOptions,
-				cache: forceRefresh ? 'reload' : 'default',
-				headers,
-				signal
-			});
-
-			// Check response status
 			if (!response.ok) {
-				const contentType = response.headers.get('content-type');
-				const isJson = contentType?.includes('application/json') ?? false;
-				const responseBody = isJson ? await response.json() : await response.text();
-				const message = getErrorMessageFromBody(responseBody, response.status, response.statusText);
-
-				throw new FetchError(message, response.status, response.statusText, responseBody);
+				await throwFetchError(response);
 			}
 
-			// Return raw response without consuming body
 			return { data: response, response };
 		};
 
@@ -583,7 +588,21 @@ class FetchService {
 		const token = this.getAuthToken ? await this.getAuthToken() : null;
 		const url = this.buildUrl(endpoint);
 
-		// Use polyfill constructor that supports fetch option
+		// Validate polyfill availability when auth is needed
+		if (token) {
+			const testSource = new EventSource('data:text/event-stream,');
+			const supportsFetch =
+				'fetch' in Object.getPrototypeOf(testSource).constructor.prototype ||
+				typeof (testSource as unknown as Record<string, unknown>).close === 'function';
+			testSource.close();
+
+			if (!supportsFetch) {
+				throw new Error(
+					'Authenticated SSE requires an EventSource polyfill that supports the fetch option ' + '(e.g., @microsoft/fetch-event-source).'
+				);
+			}
+		}
+
 		const EventSourceWithFetch = EventSource as unknown as EventSourceConstructor;
 
 		const eventSource = new EventSourceWithFetch(url, {
@@ -605,38 +624,3 @@ class FetchService {
 
 export { FetchService, FetchError };
 export type { RequestOptions, RequestResult, UploadProgressEvent, CancellableRequest, FetchServiceConfig, UploadOptions, SSEOptions };
-
-let apiClientInstance: FetchService | null = null;
-
-export function initFetchService(
-	getAuthToken: () => Promise<string | null>,
-	config: Omit<FetchServiceConfig, 'getAuthToken'> = {}
-): FetchService {
-	if (!apiClientInstance) {
-		apiClientInstance = new FetchService({
-			baseUrl: import.meta.env.VITE_API_BASE_URL,
-			...config,
-			getAuthToken
-		});
-	}
-	return apiClientInstance;
-}
-
-export function getFetchService(): FetchService {
-	if (!apiClientInstance) {
-		throw new Error('FetchService not initialized. Call initFetchService() first.');
-	}
-	return apiClientInstance;
-}
-
-export function resetFetchService(): void {
-	apiClientInstance = null;
-}
-
-export const apiClient = new Proxy({} as FetchService, {
-	get(_target, prop) {
-		const instance = getFetchService();
-		const value = instance[prop as keyof FetchService];
-		return typeof value === 'function' ? value.bind(instance) : value;
-	}
-});

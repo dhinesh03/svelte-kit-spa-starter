@@ -25,11 +25,13 @@
       "Bash(npm install:*)",
       "Bash(npm uninstall:*)",
       "Bash(npm run build:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "WebFetch(domain:www.runed.dev)",
+      "Bash(ps aux:*)"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "svelte"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }
