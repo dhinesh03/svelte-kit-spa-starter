@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { resource } from 'runed';
 	import {
 		getPosts,
 		getUsers,
@@ -11,6 +10,7 @@
 		type Todo
 	} from '$lib/apis/json-placeholder';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import { resource } from 'runed';
 
 	// ── State ────────────────────────────────────────────────────────────
 
@@ -85,8 +85,7 @@
 		<h1 class="text-3xl font-bold tracking-tight">API + Resource Showcase</h1>
 		<p class="mt-2 text-muted-foreground">
 			Reactive data fetching with <code class="rounded bg-muted px-1.5 py-0.5 text-sm">runed resource</code>
-			and <code class="rounded bg-muted px-1.5 py-0.5 text-sm">FetchService</code>. Select a user to load their
-			posts and todos.
+			and <code class="rounded bg-muted px-1.5 py-0.5 text-sm">FetchService</code>. Select a user to load their posts and todos.
 		</p>
 	</div>
 
@@ -173,7 +172,7 @@
 									: 'border-border hover:bg-accent'}"
 								onclick={() => (selectedPost = post)}
 							>
-								<h3 class="text-sm font-medium capitalize leading-snug">{post.title}</h3>
+								<h3 class="text-sm leading-snug font-medium capitalize">{post.title}</h3>
 								<p class="mt-1 line-clamp-2 text-xs text-muted-foreground">{post.body}</p>
 							</button>
 						{/each}

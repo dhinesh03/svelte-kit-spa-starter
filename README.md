@@ -4,19 +4,19 @@ A feature-rich SvelteKit Single Page Application starter template with TypeScrip
 
 ## Tech Stack
 
-| Category | Technology |
-|----------|-----------|
-| Framework | SvelteKit 2 (static adapter, SPA mode) |
-| Language | Svelte 5 (runes) + TypeScript (strict) |
-| Styling | Tailwind CSS v4, tw-animate-css, tailwind-variants |
-| UI Components | Bits UI (40+ headless components), Lucide icons |
-| Authentication | Azure AD / MSAL |
-| Data Grid | AG Grid Community |
-| Search | Fuse.js (fuzzy search) |
-| Virtual Scrolling | Virtua |
-| Reactivity | Runed (reactive resources) |
-| Testing | Vitest |
-| Linting | ESLint 9 (flat config) + Prettier |
+| Category          | Technology                                         |
+| ----------------- | -------------------------------------------------- |
+| Framework         | SvelteKit 2 (static adapter, SPA mode)             |
+| Language          | Svelte 5 (runes) + TypeScript (strict)             |
+| Styling           | Tailwind CSS v4, tw-animate-css, tailwind-variants |
+| UI Components     | Bits UI (40+ headless components), Lucide icons    |
+| Authentication    | Azure AD / MSAL                                    |
+| Data Grid         | AG Grid Community                                  |
+| Search            | Fuse.js (fuzzy search)                             |
+| Virtual Scrolling | Virtua                                             |
+| Reactivity        | Runed (reactive resources)                         |
+| Testing           | Vitest                                             |
+| Linting           | ESLint 9 (flat config) + Prettier                  |
 
 ## Getting Started
 
@@ -57,18 +57,18 @@ npm run preview
 
 ## Available Scripts
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start dev server on port 3000 |
-| `npm run build` | Build for production (static output) |
-| `npm run preview` | Preview production build |
-| `npm run check` | Run svelte-check for type errors |
-| `npm run check:watch` | Run svelte-check in watch mode |
-| `npm run lint` | Check formatting & linting |
-| `npm run lint:fix` | Auto-fix formatting & linting |
-| `npm run format` | Format with Prettier |
-| `npm run test` | Run unit tests once |
-| `npm run test:unit` | Run unit tests in watch mode |
+| Script                | Description                          |
+| --------------------- | ------------------------------------ |
+| `npm run dev`         | Start dev server on port 3000        |
+| `npm run build`       | Build for production (static output) |
+| `npm run preview`     | Preview production build             |
+| `npm run check`       | Run svelte-check for type errors     |
+| `npm run check:watch` | Run svelte-check in watch mode       |
+| `npm run lint`        | Check formatting & linting           |
+| `npm run lint:fix`    | Auto-fix formatting & linting        |
+| `npm run format`      | Format with Prettier                 |
+| `npm run test`        | Run unit tests once                  |
+| `npm run test:unit`   | Run unit tests in watch mode         |
 
 ## Project Structure
 

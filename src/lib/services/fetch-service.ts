@@ -108,6 +108,9 @@ function getErrorMessageFromBody(responseBody: unknown, status: number, statusTe
 		if (typeof detail === 'string' && detail.trim()) {
 			return detail.trim();
 		}
+		if (Array.isArray(detail) && detail.length > 0) {
+			return detail.map((d) => (typeof d === 'string' ? d : ((d as Record<string, unknown>)?.msg ?? JSON.stringify(d)))).join('; ');
+		}
 	}
 
 	// Map common HTTP status codes to user-friendly messages

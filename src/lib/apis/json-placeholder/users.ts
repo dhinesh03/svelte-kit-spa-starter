@@ -1,5 +1,7 @@
-import { jsonPlaceholderApi } from '$lib/services/api-service';
 import type { CancellableRequest } from '$lib/services/fetch-service';
+
+import { jsonPlaceholderApi } from '$lib/services/api-service';
+
 import type { User } from './types';
 
 export function getUsers(): CancellableRequest<User[]> {

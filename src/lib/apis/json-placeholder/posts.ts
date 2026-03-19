@@ -1,5 +1,7 @@
-import { jsonPlaceholderApi } from '$lib/services/api-service';
 import type { CancellableRequest } from '$lib/services/fetch-service';
+
+import { jsonPlaceholderApi } from '$lib/services/api-service';
+
 import type { Comment, Post } from './types';
 
 export function getPosts(params?: { userId?: number }): CancellableRequest<Post[]> {
