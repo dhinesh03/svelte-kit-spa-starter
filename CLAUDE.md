@@ -48,12 +48,17 @@ src/
 
 Detailed rules are split by concern and auto-loaded by Claude Code:
 
-| Rule file | Scope | What it covers |
-| --- | --- | --- |
-| `state-management.md` | All files | Svelte 5 runes, class-based state pattern, context API |
-| `api-conventions.md` | `src/lib/apis/**`, `src/lib/services/**` | CancellableRequest pattern, FetchService, API module structure |
-| `component-conventions.md` | `src/lib/components/**`, `src/routes/**/*.svelte` | Component lookup order, shadcn-svelte, theming |
-| `code-style.md` | All files | TypeScript strict, imports, formatting, testing |
+| Rule file                  | Scope                                             | What it covers                                                 |
+| -------------------------- | ------------------------------------------------- | -------------------------------------------------------------- |
+| `state-management.md`      | All files                                         | Svelte 5 runes, class-based state pattern, context API         |
+| `api-conventions.md`       | `src/lib/apis/**`, `src/lib/services/**`          | CancellableRequest pattern, FetchService, API module structure |
+| `component-conventions.md` | `src/lib/components/**`, `src/routes/**/*.svelte` | Component lookup order, shadcn-svelte, theming                 |
+| `code-style.md`            | All files                                         | TypeScript strict, imports, formatting, testing                |
+
+## Skills
+
+This project has Svelte 5 / SvelteKit skills loaded from `.claude/skills/`.
+Use them when working on components, routing, data loading, or runes.
 
 ### Adding a New Route
 
