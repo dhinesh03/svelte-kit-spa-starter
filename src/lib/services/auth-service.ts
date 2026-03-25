@@ -1,10 +1,3 @@
-/**
- * AuthService.ts - Azure AD Authentication Service
- *
- * Universal singleton that works in both Svelte 5 components (reactive)
- * and plain JS/TS files. Uses `createSubscriber` for optional reactivity.
- */
-
 import { createSubscriber } from 'svelte/reactivity';
 
 import {
@@ -12,6 +5,7 @@ import {
 	BrowserAuthError,
 	EventType,
 	InteractionRequiredAuthError,
+	LogLevel,
 	NavigationClient,
 	PublicClientApplication,
 	type AccountInfo,
@@ -81,6 +75,7 @@ class AuthService {
 	private config: AuthServiceConfig;
 	private eventCallbackId: string | null = null;
 	private initPromise: Promise<AccountInfo | null> | null = null;
+	#destroyed = false;
 
 	#state: AuthState = {
 		isInitialized: false,
@@ -143,6 +138,7 @@ class AuthService {
 	}
 
 	private set current(newState: Partial<AuthState>) {
+		if (this.#destroyed) return;
 		this.#state = { ...this.#state, ...newState };
 		this.#update?.();
 	}
@@ -183,8 +179,11 @@ class AuthService {
 				allowRedirectInIframe: false,
 				loggerOptions: config.enableLogging
 					? {
-							loggerCallback: (_level, message, containsPii) => {
-								if (!containsPii) console.log(`[MSAL] ${message}`);
+							loggerCallback: (level, message, containsPii) => {
+								if (containsPii) return;
+								if (level === LogLevel.Error) console.error(`[MSAL] ${message}`);
+								else if (level === LogLevel.Warning) console.warn(`[MSAL] ${message}`);
+								else if (level === LogLevel.Info) console.info(`[MSAL] ${message}`);
 							},
 							piiLoggingEnabled: false
 						}
@@ -223,10 +222,8 @@ class AuthService {
 		if (!isBrowser) return;
 
 		try {
-			// Only remove the interaction status key, not the entire MSAL cache.
-			// MSAL stores the interaction lock under "msal.interaction.status" in sessionStorage.
-			// Removing all "msal.*" keys would destroy cached tokens and accounts.
-			const interactionKey = 'msal.interaction.status';
+			// MSAL v4 keys the interaction lock as "msal.<clientId>.interaction.status"
+			const interactionKey = `msal.${this.config.clientId}.interaction.status`;
 			sessionStorage.removeItem(interactionKey);
 		} catch {
 			// Ignore storage errors
@@ -309,41 +306,38 @@ class AuthService {
 
 			if (response?.account) {
 				this.handleAuthSuccess(response.account);
+				this.current = { isLoading: false, isInitialized: true };
 				return response.account;
 			}
 
 			const activeAccount = this.msalInstance.getActiveAccount();
 			if (activeAccount) {
 				this.handleAuthSuccess(activeAccount);
+				this.current = { isLoading: false, isInitialized: true };
 				return activeAccount;
 			}
 
 			const accounts = this.msalInstance.getAllAccounts();
-			const tenantAccount = accounts.find((a) => a.tenantId === this.config.tenantId);
-			if (tenantAccount) {
-				this.handleAuthSuccess(tenantAccount);
-				return tenantAccount;
-			}
 
 			if (this.config.enableSsoSilent && accounts.length === 0) {
 				try {
 					await this.ssoSilent();
+					this.current = { isLoading: false, isInitialized: true };
 					return this.#state.account;
 				} catch {
 					// Silent SSO failed, user must sign in manually
 				}
 			}
 
+			this.current = { isLoading: false, isInitialized: true };
 			return null;
 		} catch (error) {
-			// Clear initPromise on failure to allow retries on subsequent calls
 			this.initPromise = null;
+			this.current = { isLoading: false };
 			this.handleError(error);
 			throw error instanceof AuthServiceError
 				? error
 				: new AuthServiceError(error instanceof Error ? error.message : 'Initialization failed', 'INIT_FAILED', error);
-		} finally {
-			this.current = { isLoading: false, isInitialized: true };
 		}
 	}
 
@@ -496,6 +490,7 @@ class AuthService {
 	}
 
 	destroy(): void {
+		this.#destroyed = true;
 		if (this.eventCallbackId) {
 			this.msalInstance.removeEventCallback(this.eventCallbackId);
 			this.eventCallbackId = null;

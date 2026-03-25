@@ -87,29 +87,22 @@ interface PreparedRequest {
 	fetchOptions: RequestInit;
 }
 
-/**
- * Extracts a user-facing error message from an API error response body.
- * Returns generic, user-friendly messages instead of detailed server errors.
- * The actual error details are logged to console for debugging.
- */
+const MAX_DETAIL_LENGTH = 500;
+
 function getErrorMessageFromBody(responseBody: unknown, status: number, statusText: string): string {
-	// Log detailed error for debugging (only in development or for developer tools)
 	if (import.meta.env.DEV) {
-		console.error('API Error:', {
-			status,
-			statusText,
-			responseBody
-		});
+		console.error('API Error:', { status, statusText, responseBody });
 	}
 
-	// If the server returned a detail message, surface it directly
 	if (responseBody && typeof responseBody === 'object' && 'detail' in responseBody) {
 		const detail = (responseBody as Record<string, unknown>).detail;
 		if (typeof detail === 'string' && detail.trim()) {
-			return detail.trim();
+			const trimmed = detail.trim();
+			return trimmed.length > MAX_DETAIL_LENGTH ? trimmed.slice(0, MAX_DETAIL_LENGTH) + '...' : trimmed;
 		}
 		if (Array.isArray(detail) && detail.length > 0) {
-			return detail.map((d) => (typeof d === 'string' ? d : ((d as Record<string, unknown>)?.msg ?? JSON.stringify(d)))).join('; ');
+			const joined = detail.map((d) => (typeof d === 'string' ? d : ((d as Record<string, unknown>)?.msg ?? JSON.stringify(d)))).join('; ');
+			return joined.length > MAX_DETAIL_LENGTH ? joined.slice(0, MAX_DETAIL_LENGTH) + '...' : joined;
 		}
 	}
 
@@ -164,17 +157,28 @@ async function throwFetchError(response: Response): Promise<never> {
 class FetchError extends Error {
 	public readonly status: number;
 	public readonly statusText: string;
-	public readonly responseBody: unknown;
+	private readonly _responseBody: unknown;
 
 	constructor(message: string, status: number, statusText: string, responseBody: unknown) {
 		super(message);
 		this.name = 'FetchError';
 		this.status = status;
 		this.statusText = statusText;
-		this.responseBody = responseBody;
-
-		// Maintains proper stack trace for where error was thrown (ES5 compatibility)
+		this._responseBody = responseBody;
 		Object.setPrototypeOf(this, FetchError.prototype);
+	}
+
+	get responseBody(): unknown {
+		return this._responseBody;
+	}
+
+	toJSON(): Record<string, unknown> {
+		return {
+			name: this.name,
+			message: this.message,
+			status: this.status,
+			statusText: this.statusText
+		};
 	}
 }
 
@@ -235,6 +239,10 @@ class FetchService {
 	 * Builds full URL from endpoint, handling trailing/leading slashes.
 	 */
 	private buildUrl(endpoint: string): string {
+		if (/^https?:\/\//i.test(endpoint)) {
+			throw new Error('FetchService: absolute URLs are not allowed as endpoints. Use relative paths.');
+		}
+
 		if (!this.baseUrl) return endpoint;
 
 		const base = this.baseUrl.endsWith('/') ? this.baseUrl.slice(0, -1) : this.baseUrl;
@@ -340,12 +348,6 @@ class FetchService {
 		onUploadProgress: (event: ProgressEvent) => void
 	): Promise<Response> {
 		return new Promise((resolve, reject) => {
-			// Check if already aborted before starting
-			if (signal.aborted) {
-				reject(new DOMException('The operation was aborted.', 'AbortError'));
-				return;
-			}
-
 			const xhr = new XMLHttpRequest();
 			let settled = false;
 
@@ -368,7 +370,13 @@ class FetchService {
 				}
 			};
 
+			// Attach listener first, then check — avoids TOCTOU race
 			signal.addEventListener('abort', abortHandler);
+			if (signal.aborted) {
+				abortHandler();
+				return;
+			}
+
 			xhr.upload.addEventListener('progress', progressHandler);
 
 			xhr.addEventListener('load', () => {
@@ -444,7 +452,6 @@ class FetchService {
 				await throwFetchError(response);
 			}
 
-			// Handle empty responses (204 No Content, 205 Reset Content)
 			const contentLength = response.headers.get('content-length');
 			const isEmpty = response.status === 204 || response.status === 205 || contentLength === '0';
 
@@ -454,7 +461,8 @@ class FetchService {
 			} else if (isJson) {
 				data = (await response.json()) as T;
 			} else {
-				data = (await response.text()) as unknown as T;
+				const text = await response.text();
+				data = (text === '' ? null : text) as unknown as T;
 			}
 
 			return { data, response };
@@ -526,7 +534,7 @@ class FetchService {
 
 		if (options.additionalFields) {
 			for (const [key, value] of Object.entries(options.additionalFields)) {
-				formData.append(key, value);
+				formData.set(key, value);
 			}
 		}
 
@@ -563,7 +571,7 @@ class FetchService {
 		const url = this.buildUrl(endpoint) + this.toQueryString(options.params);
 
 		const requestPromise = async (): Promise<RequestResult<Response>> => {
-			const { fetchOptions } = await this.buildRequestConfig(url, options, controller, '*/*');
+			const { fetchOptions } = await this.buildRequestConfig(url, { ...options, method: options.method ?? 'GET' }, controller, '*/*');
 
 			const response = await fetch(url, fetchOptions);
 
@@ -588,37 +596,35 @@ class FetchService {
 	 * @param options - SSE options
 	 */
 	public async subscribeToSSE(endpoint: string, options: SSEOptions = {}): Promise<EventSource> {
-		const token = this.getAuthToken ? await this.getAuthToken() : null;
 		const url = this.buildUrl(endpoint);
+		const needsAuth = !!this.getAuthToken;
 
-		// Validate polyfill availability when auth is needed
-		if (token) {
-			const testSource = new EventSource('data:text/event-stream,');
-			const supportsFetch =
-				'fetch' in Object.getPrototypeOf(testSource).constructor.prototype ||
-				typeof (testSource as unknown as Record<string, unknown>).close === 'function';
-			testSource.close();
-
-			if (!supportsFetch) {
-				throw new Error(
-					'Authenticated SSE requires an EventSource polyfill that supports the fetch option ' + '(e.g., @microsoft/fetch-event-source).'
-				);
+		// Verify the EventSource constructor accepts a `fetch` option (polyfill required for auth)
+		if (needsAuth) {
+			const proto = Object.getPrototypeOf(EventSource.prototype) as Record<string, unknown> | null;
+			const constructorAcceptsFetch =
+				(proto !== null && 'fetch' in proto) || 'fetch' in (EventSource as unknown as Record<string, unknown>);
+			if (!constructorAcceptsFetch) {
+				throw new Error('Authenticated SSE requires an EventSource polyfill that supports the fetch option (e.g., extended-eventsource).');
 			}
 		}
 
+		const getAuthToken = this.getAuthToken;
 		const EventSourceWithFetch = EventSource as unknown as EventSourceConstructor;
 
 		const eventSource = new EventSourceWithFetch(url, {
-			fetch: (input: RequestInfo | URL, init?: RequestInit) =>
-				fetch(input, {
+			fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+				const freshToken = getAuthToken ? await getAuthToken() : null;
+				return fetch(input, {
 					...init,
 					signal: options.signal,
 					headers: {
 						...init?.headers,
 						Accept: 'text/event-stream',
-						...(token ? { Authorization: `Bearer ${token}` } : {})
+						...(freshToken ? { Authorization: `Bearer ${freshToken}` } : {})
 					}
-				})
+				});
+			}
 		});
 
 		return eventSource;
