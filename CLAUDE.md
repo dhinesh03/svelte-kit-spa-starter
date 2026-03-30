@@ -33,7 +33,7 @@ src/
 │   ├── components/
 │   │   ├── ui/            # shadcn-svelte components (do NOT manually edit — use CLI)
 │   │   └── <custom>/      # Custom reusable components (combobox, sortable-list, file-upload, etc.)
-│   ├── features/          # Feature-specific logic and initialization especially *.svelte.ts files (e.g., ag-grid, transitions)
+│   ├── features/          # Feature-specific logic and initialization especially *.svelte.ts files (e.g., ag-grid, plotly, transitions)
 │   ├── hooks/             # Reactive hooks as .svelte.ts files
 │   ├── services/          # FetchService (HTTP client), AuthService (Azure AD/MSAL), NavigationClient
 │   └── utils.ts           # Shared utilities (cn, helpers)
@@ -55,13 +55,27 @@ Detailed rules are split by concern and auto-loaded by Claude Code:
 | `component-conventions.md` | `src/lib/components/**`, `src/routes/**/*.svelte` | Component lookup order, shadcn-svelte, theming                 |
 | `code-style.md`            | All files                                         | TypeScript strict, imports, formatting, testing                |
 
-## Skills
-
-This project has Svelte 5 / SvelteKit skills loaded from `.claude/skills/`.
-Use them when working on components, routing, data loading, or runes.
-
 ### Adding a New Route
 
 1. Create `src/routes/<name>/+page.svelte`
 2. If the route needs shared state, add `+layout.svelte` and a `stores/` directory
 3. Add navigation entry in the sidebar configuration
+
+## Skills (`.claude/skills/`)
+
+Project-level skills provide Svelte 5 and SvelteKit reference documentation. Use them when working on any Svelte task:
+
+| Task                                       | Skills to load                                             |
+| ------------------------------------------ | ---------------------------------------------------------- |
+| Creating/editing components                | `svelte-runes`, `svelte-template-syntax`, `svelte-styling` |
+| Reactive state, props, effects             | `svelte-runes`                                             |
+| Shared state, context API                  | `svelte-state-context`                                     |
+| Event handling, bindings, transitions      | `svelte-bindings-events`                                   |
+| Snippets, {@attach}, {@html}               | `svelte-template-syntax`                                   |
+| Error boundaries, window/document bindings | `svelte-special-elements`                                  |
+| Routing, layouts, page options             | `sveltekit-routing`                                        |
+| Load functions, invalidation, hooks        | `sveltekit-data-loading`                                   |
+| SPA setup, $app modules, $env              | `sveltekit-spa-static`                                     |
+| Remote functions (.remote.ts)              | `sveltekit-remote-functions`                               |
+| Reactive utilities (runed library)         | `runed`                                                    |
+| CSS, theming, class attributes             | `svelte-styling`                                           |

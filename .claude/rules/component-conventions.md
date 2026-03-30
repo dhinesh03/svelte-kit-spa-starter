@@ -1,9 +1,10 @@
 ---
 paths:
-  - "src/lib/components/**"
-  - "src/lib/features/**"
-  - "src/routes/**/*.svelte"
+  - 'src/lib/components/**'
+  - 'src/lib/features/**'
+  - 'src/routes/**/*.svelte'
 ---
+
 # Component Conventions
 
 When you need a UI component, follow this lookup order **strictly**:
@@ -14,10 +15,11 @@ When you need a UI component, follow this lookup order **strictly**:
 4. **[shadcn-svelte](https://shadcn-svelte.com/docs/components)** — Search docs and add: `npx shadcn-svelte@latest add <component>`
 5. **Custom with Bits UI** — Last resort only. Must use `cn()` and respect shadcn theme tokens from `layout.css`
 
-| Need | Use | Notes |
-| --- | --- | --- |
-| Tables / Data grids | `$lib/features/ag-grid` | Initialize with `{@attach}` directive |
-| Select / Combobox | `$lib/components/combobox` | For plain select, disable search prop |
+| Need                    | Use                        | Notes                                                          |
+| ----------------------- | -------------------------- | -------------------------------------------------------------- |
+| Tables / Data grids     | `$lib/features/ag-grid`    | Initialize with `{@attach}` directive                          |
+| Charts / Visualizations | `$lib/features/plotly`     | Initialize with `{@attach}`, pass raw Plotly `Data[]`/`Layout` |
+| Select / Combobox       | `$lib/components/combobox` | For plain select, disable search prop                          |
 
 Custom components go under `src/lib/components/<component-name>/` with barrel `index.ts`.
 
@@ -26,3 +28,11 @@ Custom components go under `src/lib/components/<component-name>/` with barrel `i
 - `mode-watcher` manages dark/light mode globally
 - Access current mode reactively via `import { mode } from 'mode-watcher'` → `mode.current`
 - CSS tokens defined in `layout.css` with `:root` (light) and `.dark` overrides
+- Plotly charts: dark/light theme handled automatically by `initPlotlyChart()` — no manual theming needed. Custom theme overrides in `$lib/features/plotly/theme.ts`
+
+## Debounce Patterns
+
+| Pattern | Use for | Import |
+| --- | --- | --- |
+| `runed` `Debounced` | Debouncing reactive **values** (search input, filter text) | `import { Debounced } from 'runed'` |
+| `makeDebounce` | Debouncing **event callbacks** (resize, scroll handlers) | `import { makeDebounce } from '$lib/helpers'` |

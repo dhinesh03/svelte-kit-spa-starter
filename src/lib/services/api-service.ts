@@ -23,6 +23,10 @@ export const jsonPlaceholderApi = new FetchService({
 	baseUrl: 'https://jsonplaceholder.typicode.com'
 });
 
+export const httpbinApi = new FetchService({
+	baseUrl: 'https://httpbin.org'
+});
+
 // ---------------------------------------------------------------------------
 // Add more instances as needed, for example:
 // ---------------------------------------------------------------------------

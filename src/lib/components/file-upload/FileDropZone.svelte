@@ -11,7 +11,7 @@
 	import { onDestroy } from 'svelte';
 
 	import { cn } from '$lib/utils';
-	import { Upload, X, Image, Video, Music, FileText, File as FileIcon, AlertCircle } from '@lucide/svelte';
+	import { Upload, X, Image, Video, Music, FileText, File as FileIcon, CircleAlert } from '@lucide/svelte';
 	import { useId } from 'bits-ui';
 
 	import type { FileDropZoneProps, FileRejectedReason } from './types';
@@ -45,6 +45,19 @@
 	const effectiveMaxFiles = $derived(maxFiles !== undefined ? Math.max(1, maxFiles) : undefined);
 	const maxFilesReached = $derived(effectiveMaxFiles !== undefined && uploadedFiles.length >= effectiveMaxFiles);
 	const canUploadFiles = $derived(!disabled && !uploading && !maxFilesReached);
+
+	const statusMessage = $derived.by(() => {
+		if (uploading) {
+			const count = uploadedFiles.filter((f) => f.uploading).length;
+			return `Processing ${count} file${count > 1 ? 's' : ''}`;
+		}
+		if (uploadedFiles.some((f) => f.error)) {
+			const count = uploadedFiles.filter((f) => f.error).length;
+			return `${count} file upload${count > 1 ? 's' : ''} failed`;
+		}
+		if (uploadedFiles.length > 0) return `${uploadedFiles.length} file${uploadedFiles.length > 1 ? 's' : ''} selected`;
+		return '';
+	});
 
 	const getFileIcon = (file: File): Component => {
 		if (file.type.startsWith('image/')) return Image;
@@ -84,7 +97,7 @@
 	};
 
 	const change = async (e: Event & { currentTarget: EventTarget & HTMLInputElement }) => {
-		if (disabled) return;
+		if (!canUploadFiles) return;
 
 		const selectedFiles = e.currentTarget.files;
 		if (!selectedFiles) return;
@@ -93,9 +106,9 @@
 		(e.target as HTMLInputElement).value = '';
 	};
 
-	const shouldAcceptFile = (file: File, fileNumber: number): FileRejectedReason | undefined => {
+	const shouldAcceptFile = (file: File, proposedCount: number): FileRejectedReason | undefined => {
 		if (maxFileSize !== undefined && file.size > maxFileSize) return 'Maximum file size exceeded';
-		if (effectiveMaxFiles !== undefined && fileNumber > effectiveMaxFiles) return 'Maximum files uploaded';
+		if (effectiveMaxFiles !== undefined && proposedCount > effectiveMaxFiles) return 'Maximum files uploaded';
 		if (!accept) return undefined;
 
 		const acceptedTypes = accept.split(',').map((a) => a.trim().toLowerCase());
@@ -117,43 +130,40 @@
 		return undefined;
 	};
 
-	const upload = async (uploadFiles: File[]) => {
-		uploading = true;
+	const buildFileItems = (uploadFiles: File[]) => {
 		const validFiles: File[] = [];
-		const fileItemsToUpload: Array<{
-			file: File;
-			id: string;
-			preview?: string;
-			uploading: boolean;
-			error: boolean;
-		}> = [];
+		const fileItems: Array<{ file: File; id: string; preview?: string; uploading: boolean; error: boolean }> = [];
 
-		try {
-			for (let i = 0; i < uploadFiles.length; i++) {
-				const file = uploadFiles[i];
-				const rejectedReason = shouldAcceptFile(file, uploadedFiles.length + validFiles.length + 1);
+		for (const file of uploadFiles) {
+			const rejectedReason = shouldAcceptFile(file, uploadedFiles.length + validFiles.length + 1);
 
-				if (rejectedReason) {
-					onFileRejected?.({ file, reason: rejectedReason });
-					continue;
-				}
-
-				validFiles.push(file);
-
-				const preview = createPreview(file);
-				const fileItem = {
-					file,
-					id: crypto.randomUUID(),
-					preview,
-					uploading: !!onUpload,
-					error: false
-				};
-
-				fileItemsToUpload.push(fileItem);
+			if (rejectedReason) {
+				onFileRejected?.({ file, reason: rejectedReason });
+				continue;
 			}
 
-			if (fileItemsToUpload.length > 0) {
-				uploadedFiles = [...uploadedFiles, ...fileItemsToUpload];
+			validFiles.push(file);
+			fileItems.push({
+				file,
+				id: crypto.randomUUID(),
+				preview: createPreview(file),
+				uploading: !!onUpload,
+				error: false
+			});
+		}
+
+		return { validFiles, fileItems };
+	};
+
+	const upload = async (uploadFiles: File[]) => {
+		if (uploading) return;
+		uploading = true;
+
+		try {
+			const { validFiles, fileItems } = buildFileItems(uploadFiles);
+
+			if (fileItems.length > 0) {
+				uploadedFiles = [...uploadedFiles, ...fileItems];
 				onChange?.(uploadedFiles.map((f) => f.file));
 			}
 
@@ -161,13 +171,15 @@
 				try {
 					await onUpload(validFiles);
 
-					uploadedFiles = uploadedFiles.map((item) =>
-						fileItemsToUpload.some((u) => u.id === item.id) ? { ...item, uploading: false } : item
-					);
+					uploadedFiles = uploadedFiles.map((item) => (fileItems.some((u) => u.id === item.id) ? { ...item, uploading: false } : item));
 				} catch (error) {
-					uploadedFiles = uploadedFiles.map((item) =>
-						fileItemsToUpload.some((u) => u.id === item.id) ? { ...item, uploading: false, error: true } : item
-					);
+					uploadedFiles = uploadedFiles.map((item) => {
+						if (fileItems.some((u) => u.id === item.id)) {
+							revokePreview(item.preview);
+							return { ...item, uploading: false, error: true, preview: undefined };
+						}
+						return item;
+					});
 					onError?.(error);
 				}
 			}
@@ -247,7 +259,11 @@
 			ondragend={handleDragEnd}
 			ondrop={drop}
 			for={id}
-			class={cn('w-full cursor-pointer', !canUploadFiles && 'cursor-not-allowed')}
+			class={cn(
+				'w-full cursor-pointer',
+				!canUploadFiles && 'cursor-not-allowed',
+				'has-focus-visible:rounded-lg has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2'
+			)}
 		>
 			<div class="flex-col items-center">
 				<div class="flex justify-between gap-2 px-3 py-2">
@@ -308,8 +324,7 @@
 			multiple={effectiveMaxFiles === undefined || effectiveMaxFiles - uploadedFiles.length > 1}
 			type="file"
 			onchange={change}
-			class="hidden"
-			aria-label="Upload files"
+			class="sr-only"
 		/>
 
 		<!-- File Preview List -->
@@ -325,7 +340,11 @@
 					>
 						<!-- Loader Overlay -->
 						{#if fileItem.uploading}
-							<div class="absolute inset-0 flex items-center justify-center rounded-md bg-background/80 backdrop-blur-sm">
+							<div
+								class="absolute inset-0 flex items-center justify-center rounded-md bg-background/80 backdrop-blur-sm"
+								role="status"
+								aria-label="Uploading {fileItem.file.name}"
+							>
 								<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
 							</div>
 						{/if}
@@ -357,7 +376,7 @@
 
 						<!-- Error Icon -->
 						{#if fileItem.error}
-							<AlertCircle class="h-4 w-4 shrink-0 text-destructive" />
+							<CircleAlert class="h-4 w-4 shrink-0 text-destructive" />
 						{/if}
 
 						<!-- Remove Button -->
@@ -379,5 +398,10 @@
 				{/each}
 			</div>
 		{/if}
+	</div>
+
+	<!-- Screen reader status announcements -->
+	<div aria-live="polite" class="sr-only">
+		{statusMessage}
 	</div>
 </div>

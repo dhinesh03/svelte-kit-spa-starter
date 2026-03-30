@@ -16,20 +16,17 @@
 
 	let dragState = $state<DragState>({
 		draggedIndex: null,
-		draggedOverIndex: null,
 		originalIndex: null
 	});
 
-	// Track if we're currently dragging
 	let isDragging = $derived(dragState.draggedIndex !== null);
-
-	// Use temporary array during drag, otherwise use original items
 	let tempItems = $state.raw<T[]>([]);
 	let displayItems = $derived(isDragging ? tempItems : items);
 
+	let keyboardGrabIndex = $state<number | null>(null);
+
 	function resetDragState() {
 		dragState.draggedIndex = null;
-		dragState.draggedOverIndex = null;
 		dragState.originalIndex = null;
 	}
 
@@ -38,7 +35,6 @@
 		e.dataTransfer.effectAllowed = 'move';
 		e.dataTransfer.setData('text/plain', index.toString());
 
-		// Start dragging - copy items to temp array
 		tempItems = [...items];
 		dragState.draggedIndex = index;
 		dragState.originalIndex = index;
@@ -53,9 +49,6 @@
 			return;
 		}
 
-		dragState.draggedOverIndex = index;
-
-		// Perform the reorder in real-time for smooth animation
 		const newItems = [...tempItems];
 		const draggedItem = newItems[dragState.draggedIndex];
 		newItems.splice(dragState.draggedIndex, 1);
@@ -65,44 +58,108 @@
 		dragState.draggedIndex = index;
 	}
 
-	function handleDragLeave(e: DragEvent) {
-		// Only reset if we're actually leaving the item (not just moving to a child element)
-		if (e.currentTarget instanceof HTMLElement) {
-			if (!(e.relatedTarget instanceof Node) || !e.currentTarget.contains(e.relatedTarget)) {
-				dragState.draggedOverIndex = null;
-			}
-		}
+	function handleDragLeave(_e: DragEvent) {
+		// no-op: live reorder is handled in handleDragOver
 	}
 
-	function handleDrop(e: DragEvent, index: number) {
+	function handleDrop(e: DragEvent) {
 		e.preventDefault();
 		e.stopPropagation();
 
 		if (dragState.draggedIndex === null || dragState.originalIndex === null) return;
 
-		// Call the onReorder callback with the new order and indices
 		onReorder?.({
 			items: tempItems,
 			from: dragState.originalIndex,
-			to: index
+			to: dragState.draggedIndex
 		});
 
 		resetDragState();
 	}
 
 	function handleDragEnd() {
+		if (dragState.originalIndex === null) return;
 		resetDragState();
 	}
 
 	function handleContainerDragOver(e: DragEvent) {
-		// Prevent default to allow drop
 		e.preventDefault();
 		if (!e.dataTransfer) return;
 		e.dataTransfer.dropEffect = 'move';
 	}
+
+	let liveMessage = $state('');
+
+	function commitKeyboardReorder(fromIndex: number, toIndex: number) {
+		if (!onReorder) {
+			keyboardGrabIndex = null;
+			return;
+		}
+
+		const newItems = [...items];
+		const [moved] = newItems.splice(fromIndex, 1);
+		newItems.splice(toIndex, 0, moved);
+
+		onReorder({
+			items: newItems,
+			from: fromIndex,
+			to: toIndex
+		});
+
+		liveMessage = `Item moved to position ${toIndex + 1} of ${items.length}`;
+	}
+
+	function handleKeyDown(e: KeyboardEvent, index: number) {
+		if (disabled) return;
+
+		if (keyboardGrabIndex === null) {
+			if (e.key === ' ' || e.key === 'Enter') {
+				e.preventDefault();
+				keyboardGrabIndex = index;
+				liveMessage = `Grabbed item at position ${index + 1} of ${items.length}. Use arrow keys to move.`;
+			}
+			return;
+		}
+
+		if (e.key === 'Escape') {
+			e.preventDefault();
+			liveMessage = 'Reorder cancelled';
+			keyboardGrabIndex = null;
+			return;
+		}
+
+		if (e.key === ' ' || e.key === 'Enter') {
+			e.preventDefault();
+			liveMessage = `Item dropped at position ${keyboardGrabIndex + 1} of ${items.length}`;
+			keyboardGrabIndex = null;
+			return;
+		}
+
+		if (e.key === 'ArrowUp' && keyboardGrabIndex > 0) {
+			e.preventDefault();
+			const from = keyboardGrabIndex;
+			const to = from - 1;
+			commitKeyboardReorder(from, to);
+			keyboardGrabIndex = to;
+		}
+
+		if (e.key === 'ArrowDown' && keyboardGrabIndex < items.length - 1) {
+			e.preventDefault();
+			const from = keyboardGrabIndex;
+			const to = from + 1;
+			commitKeyboardReorder(from, to);
+			keyboardGrabIndex = to;
+		}
+	}
 </script>
 
-<div class={cn('space-y-2', className)} role="list" ondragover={handleContainerDragOver}>
+<div aria-live="assertive" class="sr-only">{liveMessage}</div>
+<div
+	class={cn('space-y-2', isDragging && 'cursor-grabbing', className)}
+	role="list"
+	aria-label={disabled ? 'Sortable list (disabled)' : undefined}
+	ondragover={handleContainerDragOver}
+>
 	{#each displayItems as item, index (keyFn(item))}
 		<SortableItem
 			{item}
@@ -111,12 +168,14 @@
 			{dragMode}
 			{itemClass}
 			isDragging={dragState.draggedIndex === index}
-			isOver={dragState.draggedOverIndex === index && dragState.draggedIndex !== index}
+			listIsDragging={isDragging}
+			isGrabbed={keyboardGrabIndex === index}
 			ondragstart={handleDragStart}
 			ondragover={handleDragOver}
 			ondragleave={handleDragLeave}
 			ondrop={handleDrop}
 			ondragend={handleDragEnd}
+			onkeydown={handleKeyDown}
 			{handle}
 		>
 			{@render children(item)}

@@ -1,4 +1,3 @@
-import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 // This disables server-side rendering (SSR) for the entire app
 // Making it a true Single Page Application (SPA)
 export const ssr = false;
@@ -7,5 +6,3 @@ export const prerender = false;
 
 // This tells SvelteKit to use the browser's router
 export const csr = true;
-
-ModuleRegistry.registerModules([AllCommunityModule]);

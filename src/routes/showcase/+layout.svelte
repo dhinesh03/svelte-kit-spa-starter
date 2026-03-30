@@ -4,18 +4,22 @@
 	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+	import ChartCandlestick from '@lucide/svelte/icons/chart-candlestick';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import Component from '@lucide/svelte/icons/component';
 	import Globe from '@lucide/svelte/icons/globe';
 	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 	import Table from '@lucide/svelte/icons/table';
+	import UploadIcon from '@lucide/svelte/icons/upload';
 
 	let { children } = $props();
 
 	const navItems = [
 		{ title: 'Dashboard', href: '/showcase' as const, icon: LayoutDashboard },
 		{ title: 'Components', href: '/showcase/components' as const, icon: Component },
+		{ title: 'File Upload', href: '/showcase/file-upload' as const, icon: UploadIcon },
 		{ title: 'AG Grid', href: '/showcase/ag-grid' as const, icon: Table },
+		{ title: 'Charts', href: '/showcase/charts' as const, icon: ChartCandlestick },
 		{ title: 'API + Resource', href: '/showcase/api' as const, icon: Globe }
 	];
 
@@ -82,7 +86,7 @@
 	<Sidebar.Inset>
 		<header class="flex h-12 shrink-0 items-center gap-2 border-b px-4">
 			<Sidebar.Trigger class="-ml-1" />
-			<Separator orientation="vertical" class="mr-2 !h-4" />
+			<Separator orientation="vertical" class="mr-2 h-4!" />
 			<nav class="flex items-center gap-1 text-sm">
 				{#each breadcrumbs as crumb, i (crumb.href)}
 					{#if i > 0}

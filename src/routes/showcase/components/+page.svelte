@@ -42,7 +42,26 @@
 		{ value: 'todo', label: 'Todo' },
 		{ value: 'in-progress', label: 'In Progress' },
 		{ value: 'done', label: 'Done' },
-		{ value: 'cancelled', label: 'Cancelled' }
+		{ value: 'cancelled', label: 'Cancelled' },
+		{ value: 'on-hold', label: 'On Hold' },
+		{ value: 'archived', label: 'Archived' },
+		{ value: 'approved', label: 'Approved' },
+		{ value: 'rejected', label: 'Rejected' },
+		{ value: 'deferred', label: 'Deferred' },
+		{ value: 'scheduled', label: 'Scheduled' },
+		{ value: 'unscheduled', label: 'Unscheduled' },
+		{ value: 'blocked', label: 'Blocked' },
+		{ value: 'unblocked', label: 'Unblocked' },
+		{ value: 'ready', label: 'Ready' },
+		{ value: 'not-ready', label: 'Not Ready' },
+		{ value: 'in-review', label: 'In Review' },
+		{ value: 'needs-info', label: 'Needs Info' },
+		{ value: 'duplicate', label: 'Duplicate' },
+		{ value: 'wontfix', label: "Won't Fix" },
+		{ value: 'invalid', label: 'Invalid' },
+		{ value: 'fixed', label: 'Fixed' },
+		{ value: 'verified', label: 'Verified' },
+		{ value: 'reopened', label: 'Reopened' }
 	];
 
 	let singleValue = $state<string | undefined>(undefined);
@@ -174,13 +193,7 @@
 				</Card.Header>
 				<Card.Content class="space-y-3">
 					<div class="max-w-sm">
-						<ComboBox
-							items={groupedItems}
-							type="multiple"
-							bind:value={groupedValue}
-							placeholder="Select technologies..."
-							searchPlaceholder="Search technologies..."
-						/>
+						<ComboBox items={groupedItems} type="multiple" bind:value={groupedValue} size="lg" searchPlaceholder="Search technologies..." />
 					</div>
 					{#if groupedValue.length > 0}
 						<div class="flex flex-wrap gap-1">

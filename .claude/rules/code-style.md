@@ -11,4 +11,5 @@
 ## Testing
 
 - vitest with `requireAssertions: true` — every test must have at least one assertion
-- Place tests as `*.test.ts` next to source or in `__tests__/`
+- Place tests as `*.test.ts` next to the source file being tested
+- Prefer testing `.svelte.ts` logic directly over DOM-based component tests

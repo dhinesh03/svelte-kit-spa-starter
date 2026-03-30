@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 
 const showcaseDir = resolve(import.meta.dirname, '.');
 
-const expectedRoutes = ['components', 'ag-grid', 'api'];
+const expectedRoutes = ['components', 'file-upload', 'ag-grid', 'charts', 'api'];
 
 describe('showcase routes', () => {
 	it('should have a layout file', () => {

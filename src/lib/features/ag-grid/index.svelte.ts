@@ -1,7 +1,10 @@
 import { makeDebounce } from '$lib/helpers';
+import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import { createGrid, type GridApi, type GridOptions } from 'ag-grid-community';
 import { colorSchemeDark, colorSchemeLight, themeQuartz } from 'ag-grid-community';
 import { mode } from 'mode-watcher';
+
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 export const agGridTheme = themeQuartz.withParams({
 	fontSize: '12px',

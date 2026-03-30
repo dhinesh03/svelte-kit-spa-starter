@@ -5,6 +5,7 @@ export const MEGABYTE = 1024 * KILOBYTE;
 export const GIGABYTE = 1024 * MEGABYTE;
 
 export const displaySize = (bytes: number): string => {
+	if (bytes < 0 || !isFinite(bytes)) return '\u2014';
 	if (bytes < KILOBYTE) return `${bytes.toFixed(0)} B`;
 	if (bytes < MEGABYTE) return `${(bytes / KILOBYTE).toFixed(1)} KB`;
 	if (bytes < GIGABYTE) return `${(bytes / MEGABYTE).toFixed(1)} MB`;
@@ -31,6 +32,14 @@ export const ACCEPT_ARCHIVE = '.zip,.rar,.7z,.tar,.gz';
 export const ACCEPT_MEDIA = `${ACCEPT_IMAGE},${ACCEPT_VIDEO},${ACCEPT_AUDIO}`;
 export const ACCEPT_OFFICE = `${ACCEPT_DOCUMENT},${ACCEPT_SPREADSHEET},${ACCEPT_PRESENTATION}`;
 
+const MIME_WILDCARD_LABELS: Record<string, string> = {
+	'image/*': 'Images',
+	'video/*': 'Videos',
+	'audio/*': 'Audio',
+	'text/*': 'Text',
+	'application/*': 'Files'
+};
+
 /** Format accept string for user-friendly display */
 export const formatAcceptDisplay = (accept: string): string => {
 	return accept
@@ -38,6 +47,7 @@ export const formatAcceptDisplay = (accept: string): string => {
 		.map((t) => {
 			const trimmed = t.trim();
 			if (trimmed.startsWith('.')) return trimmed.slice(1).toUpperCase();
+			if (MIME_WILDCARD_LABELS[trimmed]) return MIME_WILDCARD_LABELS[trimmed];
 			return trimmed;
 		})
 		.join(', ');

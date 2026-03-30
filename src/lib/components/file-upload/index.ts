@@ -1,5 +1,5 @@
 import FileDropZone from './FileDropZone.svelte';
-import { type FileRejectedReason, type FileDropZoneProps, type FileDropZoneVariant } from './types';
+import { type FileRejectedReason, type FileDropZoneProps, type FileDropZonePropsWithoutHTML, type FileDropZoneVariant } from './types';
 
 export {
 	displaySize,
@@ -24,4 +24,4 @@ export {
 	ACCEPT_OFFICE
 } from './utils';
 
-export { FileDropZone, type FileRejectedReason, type FileDropZoneProps, type FileDropZoneVariant };
+export { FileDropZone, type FileRejectedReason, type FileDropZoneProps, type FileDropZonePropsWithoutHTML, type FileDropZoneVariant };

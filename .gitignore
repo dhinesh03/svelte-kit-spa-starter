@@ -29,3 +29,6 @@ vite.config.ts.timestamp-*
 .claude/settings.local.json
 
 .playwright-mcp
+
+# CI screenshots (should never be committed)
+screenshots/

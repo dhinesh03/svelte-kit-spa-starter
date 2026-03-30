@@ -196,6 +196,15 @@
 		return lookup;
 	});
 
+	// O(1) disabled lookup
+	const disabledLookup = $derived.by(() => {
+		const lookup = Object.create(null) as Record<string, true>;
+		for (const item of items) {
+			if (item.disabled) lookup[item.value] = true;
+		}
+		return lookup;
+	});
+
 	function isSelected(itemValue: string): boolean {
 		if (type === 'single') return value === itemValue;
 		return selectedLookup[itemValue] === true;
@@ -408,6 +417,7 @@
 	}
 
 	function handleItemSelect(itemValue: string) {
+		if (disabledLookup[itemValue]) return;
 		if (type === 'single') {
 			value = itemValue;
 			onchange?.(value);
@@ -425,6 +435,7 @@
 
 	function removeItem(itemValue: string, e: Event) {
 		e.stopPropagation();
+		if (disabledLookup[itemValue]) return;
 		if (Array.isArray(value)) {
 			value = value.filter((v) => v !== itemValue);
 			onchange?.(value);
@@ -436,8 +447,9 @@
 		e.preventDefault();
 		e.stopPropagation();
 		if (type === 'multiple') {
-			value = [];
+			value = Array.isArray(value) ? value.filter((v) => disabledLookup[v]) : [];
 		} else {
+			if (typeof value === 'string' && disabledLookup[value]) return;
 			value = undefined;
 		}
 		onchange?.(value);
@@ -447,7 +459,7 @@
 	function selectAllFiltered() {
 		if (type !== 'multiple') return;
 		const currentValues = Array.isArray(value) ? value : [];
-		const toAdd = filteredItems.filter((item) => !selectedLookup[item.value]).map((item) => item.value);
+		const toAdd = filteredItems.filter((item) => !disabledLookup[item.value] && !selectedLookup[item.value]).map((item) => item.value);
 		value = [...currentValues, ...toAdd];
 		onchange?.(value);
 	}
@@ -457,19 +469,23 @@
 		e.stopPropagation();
 		if (type !== 'multiple' || !Array.isArray(value)) return;
 		const filteredLookup = Object.create(null) as Record<string, true>;
-		for (const item of filteredItems) filteredLookup[item.value] = true;
+		for (const item of filteredItems) {
+			if (!disabledLookup[item.value]) filteredLookup[item.value] = true;
+		}
 		value = value.filter((v) => !filteredLookup[v]);
 		onchange?.(value);
 	}
 
 	const allFilteredSelected = $derived.by(() => {
-		if (type !== 'multiple' || filteredItems.length === 0) return false;
-		return filteredItems.every((item) => selectedLookup[item.value] === true);
+		if (type !== 'multiple') return false;
+		const enabled = filteredItems.filter((item) => !disabledLookup[item.value]);
+		return enabled.length > 0 && enabled.every((item) => selectedLookup[item.value] === true);
 	});
 
 	const someFilteredSelected = $derived.by(() => {
-		if (type !== 'multiple' || filteredItems.length === 0) return false;
-		return filteredItems.some((item) => selectedLookup[item.value] === true);
+		if (type !== 'multiple') return false;
+		const enabled = filteredItems.filter((item) => !disabledLookup[item.value]);
+		return enabled.length > 0 && enabled.some((item) => selectedLookup[item.value] === true);
 	});
 
 	// ── Group-level selection ─────────────────────────────────────────────
@@ -480,19 +496,19 @@
 
 	function isGroupAllSelected(groupName: string): boolean {
 		if (type !== 'multiple') return false;
-		const groupItems = getGroupItems(groupName);
-		return groupItems.length > 0 && groupItems.every((item) => selectedLookup[item.value] === true);
+		const enabled = getGroupItems(groupName).filter((item) => !disabledLookup[item.value]);
+		return enabled.length > 0 && enabled.every((item) => selectedLookup[item.value] === true);
 	}
 
 	function isGroupSomeSelected(groupName: string): boolean {
 		if (type !== 'multiple') return false;
-		return getGroupItems(groupName).some((item) => selectedLookup[item.value] === true);
+		return getGroupItems(groupName).some((item) => !disabledLookup[item.value] && selectedLookup[item.value] === true);
 	}
 
 	function selectGroup(groupName: string) {
 		if (type !== 'multiple') return;
 		const currentValues = Array.isArray(value) ? value : [];
-		const groupValues = getGroupItems(groupName).map((item) => item.value);
+		const groupValues = getGroupItems(groupName).filter((item) => !disabledLookup[item.value]).map((item) => item.value);
 		value = [...currentValues, ...groupValues.filter((v) => !selectedLookup[v])];
 		onchange?.(value);
 	}
@@ -500,7 +516,9 @@
 	function clearGroup(groupName: string) {
 		if (type !== 'multiple' || !Array.isArray(value)) return;
 		const removeLookup = Object.create(null) as Record<string, true>;
-		for (const v of getGroupItems(groupName).map((item) => item.value)) removeLookup[v] = true;
+		for (const item of getGroupItems(groupName)) {
+			if (!disabledLookup[item.value]) removeLookup[item.value] = true;
+		}
 		value = value.filter((v) => !removeLookup[v]);
 		onchange?.(value);
 	}
@@ -509,11 +527,18 @@
 
 	function handleTriggerKeydown(e: KeyboardEvent) {
 		if (e.key === 'Backspace' && type === 'multiple' && Array.isArray(value) && value.length > 0 && !open) {
+			const lastRemovable = value.findLastIndex((v) => !disabledLookup[v]);
+			if (lastRemovable === -1) return;
 			e.preventDefault();
-			value = value.slice(0, -1);
+			value = value.filter((_, i) => i !== lastRemovable);
 			onchange?.(value);
 		}
 	}
+
+	const hasClearableSelection = $derived.by(() => {
+		if (type === 'single') return typeof value === 'string' && !disabledLookup[value];
+		return Array.isArray(value) && value.some((v) => !disabledLookup[v]);
+	});
 
 	// ── Misc ──────────────────────────────────────────────────────────────
 </script>
@@ -630,16 +655,18 @@
 								{:else}
 									<span class="truncate">{tag.label}</span>
 								{/if}
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon"
-									class={cn('shrink-0 cursor-pointer hover:ring-1 hover:ring-border', s.tagRemoveBtn)}
-									onclick={(e) => removeItem(tag.value, e)}
-								>
-									<XIcon class={s.tagRemoveIcon} />
-									<span class="sr-only">Remove {tag.label}</span>
-								</Button>
+								{#if !tag.disabled}
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+										class={cn('shrink-0 cursor-pointer hover:ring-1 hover:ring-border', s.tagRemoveBtn)}
+										onclick={(e) => removeItem(tag.value, e)}
+									>
+										<XIcon class={s.tagRemoveIcon} />
+										<span class="sr-only">Remove {tag.label}</span>
+									</Button>
+								{/if}
 							</span>
 						{/each}
 						{#if hiddenCount > 0}
@@ -652,7 +679,7 @@
 					<span class="truncate">{placeholder}</span>
 				{/if}
 				<div class="flex shrink-0 items-center gap-1">
-					{#if (type === 'single' && value) || (type === 'multiple' && selectedValues.length > 0)}
+					{#if hasClearableSelection}
 						<Button type="button" variant="ghost" size="icon" class={cn('hover:bg-muted', s.clearBtn)} onclick={clearAll}>
 							<XIcon class={s.clearIcon} />
 							<span class="sr-only">{clearAllLabel}</span>
@@ -692,7 +719,7 @@
 					</div>
 				{/if}
 				<Command.List
-					class="overflow-hidden px-1"
+					class={cn(searchable ? 'overflow-hidden' : 'overflow-y-auto', 'px-1')}
 					style={searchable
 						? `max-height: ${listHeight}`
 						: `max-height: min(${listHeight}, var(--bits-popover-content-available-height, ${listHeight}))`}
