@@ -1,6 +1,6 @@
-import type { CancellableRequest, UploadProgressEvent } from '$lib/services/fetch-service';
+import type { CancellableRequest, UploadProgressEvent } from '$lib/services/fetch';
 
-import { httpbinApi } from '$lib/services/api-service';
+import { httpbinApi } from '$lib/services/fetch';
 
 import type { HttpbinPostResponse } from './types';
 

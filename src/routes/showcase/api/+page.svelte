@@ -10,6 +10,7 @@
 		type Todo
 	} from '$lib/apis/json-placeholder';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import { fetchData } from '$lib/services/fetch';
 	import { resource } from 'runed';
 
 	// ── State ────────────────────────────────────────────────────────────
@@ -21,12 +22,7 @@
 
 	const users = resource(
 		() => true,
-		async (_v, _pv, { signal }) => {
-			const { request, cancel } = getUsers();
-			signal.addEventListener('abort', () => cancel('dependency changed'));
-			const { data } = await request;
-			return data;
-		},
+		async (_v, _pv, { signal }) => fetchData((s) => getUsers(s), signal),
 		{ initialValue: [] as User[] }
 	);
 
@@ -34,10 +30,7 @@
 		() => selectedUserId,
 		async (userId, _prev, { signal }) => {
 			if (userId === undefined) return [];
-			const { request, cancel } = getPosts({ userId });
-			signal.addEventListener('abort', () => cancel('dependency changed'));
-			const { data } = await request;
-			return data;
+			return fetchData((s) => getPosts({ userId }, s), signal);
 		},
 		{ initialValue: [] as Post[] }
 	);
@@ -46,10 +39,7 @@
 		() => selectedPost?.id,
 		async (postId, _prev, { signal }) => {
 			if (postId === undefined) return [];
-			const { request, cancel } = getPostComments(postId);
-			signal.addEventListener('abort', () => cancel('dependency changed'));
-			const { data } = await request;
-			return data;
+			return fetchData((s) => getPostComments(postId, s), signal);
 		},
 		{ initialValue: [] as Comment[] }
 	);
@@ -58,10 +48,7 @@
 		() => selectedUserId,
 		async (userId, _prev, { signal }) => {
 			if (userId === undefined) return [];
-			const { request, cancel } = getTodosByUser(userId);
-			signal.addEventListener('abort', () => cancel('dependency changed'));
-			const { data } = await request;
-			return data;
+			return fetchData((s) => getTodosByUser(userId, s), signal);
 		},
 		{ initialValue: [] as Todo[] }
 	);

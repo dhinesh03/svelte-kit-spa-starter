@@ -32,7 +32,7 @@ Custom components go under `src/lib/components/<component-name>/` with barrel `i
 
 ## Debounce Patterns
 
-| Pattern | Use for | Import |
-| --- | --- | --- |
-| `runed` `Debounced` | Debouncing reactive **values** (search input, filter text) | `import { Debounced } from 'runed'` |
-| `makeDebounce` | Debouncing **event callbacks** (resize, scroll handlers) | `import { makeDebounce } from '$lib/helpers'` |
+| Pattern             | Use for                                                    | Import                                        |
+| ------------------- | ---------------------------------------------------------- | --------------------------------------------- |
+| `runed` `Debounced` | Debouncing reactive **values** (search input, filter text) | `import { Debounced } from 'runed'`           |
+| `makeDebounce`      | Debouncing **event callbacks** (resize, scroll handlers)   | `import { makeDebounce } from '$lib/helpers'` |

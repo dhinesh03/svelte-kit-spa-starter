@@ -49,11 +49,16 @@ function deepMerge(...sources: (AnyRecord | undefined)[]): AnyRecord {
 	return result;
 }
 
+function getCssFontFamily(): string {
+	return getComputedStyle(document.documentElement).getPropertyValue('--font-sans').trim();
+}
+
 function mergeLayoutWithTheme(currentMode: string | undefined, userLayout?: Partial<Layout>): Partial<Layout> {
 	const theme = getThemeLayout(currentMode);
 	const axisColors = currentMode === 'dark' ? themeAxisColors.dark : themeAxisColors.light;
+	const fontFamily = getCssFontFamily();
 
-	const merged: AnyRecord = deepMerge(theme as AnyRecord, userLayout as AnyRecord);
+	const merged: AnyRecord = deepMerge(theme as AnyRecord, { font: { family: fontFamily } }, userLayout as AnyRecord);
 
 	const axisKeys = new Set<string>();
 	for (const key of Object.keys(theme)) {

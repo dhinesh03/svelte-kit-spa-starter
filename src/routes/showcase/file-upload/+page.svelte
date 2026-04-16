@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 
-	import type { UploadProgressEvent } from '$lib/services/fetch-service';
+	import type { UploadProgressEvent } from '$lib/services/fetch';
 
 	import { uploadFile } from '$lib/apis/httpbin';
 	import { FileDropZone, ACCEPT_IMAGE, MAX_FILE_SIZE_5MB, MAX_FILE_SIZE_10MB, displaySize } from '$lib/components/file-upload';

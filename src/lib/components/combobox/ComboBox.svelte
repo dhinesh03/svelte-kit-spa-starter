@@ -10,97 +10,15 @@
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import XIcon from '@lucide/svelte/icons/x';
 	import { type CommandInputProps } from 'bits-ui';
-	import Fuse from 'fuse.js';
 	import { VList } from 'virtua/svelte';
 
-	import { isGroupHeader, type ComboBoxSize, type FlatListItem, type GroupHeaderItem, type ItemType } from './types.js';
+	import { ComboBoxGroups } from './combobox-groups.svelte.js';
+	import { ComboBoxSearch } from './combobox-search.svelte.js';
+	import { ComboBoxSelection } from './combobox-selection.svelte.js';
+	import { SIZE_CONFIG, TRIGGER_PADDING } from './size-config.js';
+	import { isGroupHeader, type ComboBoxSize, type FlatListItem, type ItemType } from './types.js';
 
 	type SelectionType = 'single' | 'multiple';
-
-	// ── Size configuration ───────────────────────────────────────────────
-
-	const SIZE_CONFIG = {
-		xs: {
-			trigger: 'h-7',
-			triggerMulti: 'h-auto min-h-7 py-1',
-			text: 'text-xs',
-			tag: 'gap-0.5 rounded px-1 py-0 text-[10px]',
-			tagSpacer: 'size-3',
-			tagRemoveBtn: 'size-3',
-			tagRemoveIcon: 'size-2',
-			more: 'px-1.5 py-0 text-[10px]',
-			clearBtn: 'size-4 rounded-sm',
-			clearIcon: 'size-2.5',
-			chevron: 'size-3',
-			statusBar: 'px-2 py-1',
-			statusText: 'text-[10px]',
-			actionBtn: 'h-5 px-1.5 text-[10px]',
-			groupHeader: 'px-2 py-1',
-			groupText: 'text-[10px]',
-			measureContainer: 'right-12 left-3 gap-0.5 py-1',
-			tagContainer: 'gap-0.5'
-		},
-		sm: {
-			trigger: 'h-8',
-			triggerMulti: 'h-auto min-h-8 py-1',
-			text: 'text-sm',
-			tag: 'gap-0.5 rounded-md px-1 py-0.5 text-xs',
-			tagSpacer: 'size-3.5',
-			tagRemoveBtn: 'size-3.5',
-			tagRemoveIcon: 'size-2',
-			more: 'px-1.5 py-0.5 text-xs',
-			clearBtn: 'size-4 rounded-sm',
-			clearIcon: 'size-2.5',
-			chevron: 'size-3.5',
-			statusBar: 'px-2 py-1',
-			statusText: 'text-xs',
-			actionBtn: 'h-5 px-1.5 text-xs',
-			groupHeader: 'px-2 py-1',
-			groupText: 'text-xs',
-			measureContainer: 'right-14 left-3 gap-0.5 py-1',
-			tagContainer: 'gap-0.5'
-		},
-		default: {
-			trigger: 'h-9',
-			triggerMulti: 'h-auto min-h-10 py-2',
-			text: 'text-sm',
-			tag: 'gap-0.5 rounded-md px-1 py-0.5 text-xs',
-			tagSpacer: 'size-4',
-			tagRemoveBtn: 'size-4',
-			tagRemoveIcon: 'size-2.5',
-			more: 'px-2 py-0.5 text-xs',
-			clearBtn: 'size-5 rounded-sm',
-			clearIcon: 'size-3',
-			chevron: 'size-4',
-			statusBar: 'px-2 py-1.5',
-			statusText: 'text-xs',
-			actionBtn: 'h-6 px-2 text-xs',
-			groupHeader: 'px-2 py-1.5',
-			groupText: 'text-xs',
-			measureContainer: 'right-16 left-4 gap-1 py-2',
-			tagContainer: 'gap-1'
-		},
-		lg: {
-			trigger: 'h-10',
-			triggerMulti: 'h-auto min-h-10 py-2',
-			text: 'text-base',
-			tag: 'gap-1 rounded-md px-1.5 py-0.5 text-sm',
-			tagSpacer: 'size-4',
-			tagRemoveBtn: 'size-4',
-			tagRemoveIcon: 'size-3',
-			more: 'px-2 py-0.5 text-sm',
-			clearBtn: 'size-5 rounded-sm',
-			clearIcon: 'size-3',
-			chevron: 'size-4',
-			statusBar: 'px-2 py-2',
-			statusText: 'text-sm',
-			actionBtn: 'h-6 px-2 text-sm',
-			groupHeader: 'px-2 py-2',
-			groupText: 'text-sm',
-			measureContainer: 'right-16 left-4 gap-1 py-2',
-			tagContainer: 'gap-1'
-		}
-	} as const satisfies Record<ComboBoxSize, Record<string, string>>;
 
 	type Props = {
 		/** The list of items to display */
@@ -171,72 +89,60 @@
 		onchange
 	}: Props = $props();
 
+	// ── Extracted logic ─────────────────────────────────────────────────
+
 	const s = $derived(SIZE_CONFIG[size]);
+
+	const search = new ComboBoxSearch(() => items);
+
+	const groups = new ComboBoxGroups(
+		() => items,
+		() => search.filteredItems,
+		() => ungroupedLabel
+	);
+
+	const selection = new ComboBoxSelection(
+		() => type,
+		() => items,
+		() => search.filteredItems,
+		() => groups.groupItemsMap,
+		{
+			onchange: (v) => {
+				value = v;
+				onchange?.(v);
+			},
+			onclose: () => closeAndFocusTrigger()
+		}
+	);
+
+	// Sync $bindable value → selection (when parent changes value externally)
+	$effect(() => {
+		selection.value = value;
+	});
+
+	// ── Tag overflow measurement (DOM-coupled, stays here) ──────────────
 
 	let triggerRef = $state<HTMLButtonElement | null>(null);
 	let measureContainerRef = $state<HTMLDivElement | null>(null);
+	let tagsContainerRef = $state<HTMLDivElement | null>(null);
 	let visibleCount = $state<number>(Infinity);
 	let triggerWidth = $state(0);
+	let measuredLineHeight = $state(0);
+	let measuredGap = $state(4);
 
-	// Trigger horizontal padding reserved for left padding + chevron/clear buttons + buffer per size
-	const TRIGGER_PADDING: Record<ComboBoxSize, number> = {
-		xs: 52,
-		sm: 60,
-		default: 68,
-		lg: 68
-	};
 	const tagMaxWidth = $derived(Math.max(100, triggerWidth - TRIGGER_PADDING[size]));
+	const visibleTags = $derived(selection.selectedValues.slice(0, visibleCount));
+	const hiddenCount = $derived(Math.max(0, selection.selectedValues.length - visibleCount));
+	const containerMaxHeight = $derived(
+		measuredLineHeight > 0 ? `${maxLines * measuredLineHeight + Math.max(0, maxLines - 1) * measuredGap}px` : undefined
+	);
 
-	// O(1) selection lookup
-	const selectedLookup = $derived.by(() => {
-		const lookup = Object.create(null) as Record<string, true>;
-		if (type === 'multiple' && Array.isArray(value)) {
-			for (const v of value) lookup[v] = true;
-		}
-		return lookup;
-	});
-
-	// O(1) disabled lookup
-	const disabledLookup = $derived.by(() => {
-		const lookup = Object.create(null) as Record<string, true>;
-		for (const item of items) {
-			if (item.disabled) lookup[item.value] = true;
-		}
-		return lookup;
-	});
-
-	function isSelected(itemValue: string): boolean {
-		if (type === 'single') return value === itemValue;
-		return selectedLookup[itemValue] === true;
-	}
-
-	// Handle both single and multiple selection types
-	const selectedItem = $derived(type === 'single' ? items.find((f) => f.value === value) : undefined);
-	const selectedLabel = $derived(selectedItem?.label);
-
-	const selectedValues = $derived.by(() => {
-		if (type === 'multiple' && Array.isArray(value) && value.length > 0) {
-			const itemLookup = Object.create(null) as Record<string, T>;
-			for (const item of items) itemLookup[item.value] = item;
-			return value.map((v) => itemLookup[v]).filter((item): item is T => item != null);
-		}
-		return [];
-	});
-
-	const visibleTags = $derived(selectedValues.slice(0, visibleCount));
-	const hiddenCount = $derived(Math.max(0, selectedValues.length - visibleCount));
-
-	// Cap measurement to avoid rendering all tags in the hidden container.
-	// We only need enough to fill maxLines + 1 extra row to detect overflow.
-	// Estimate ~20 tags per line as a generous upper bound.
 	const MEASURE_TAGS_PER_LINE = 20;
 	const measureCap = $derived((maxLines + 1) * MEASURE_TAGS_PER_LINE);
-	const measureTags = $derived(selectedValues.slice(0, measureCap));
-
-	// ── Tag measurement ──────────────────────────────────────────────────
+	const measureTags = $derived(selection.selectedValues.slice(0, measureCap));
 
 	function calculateVisibleTags() {
-		if (!measureContainerRef || selectedValues.length === 0) {
+		if (!measureContainerRef || selection.selectedValues.length === 0) {
 			visibleCount = Infinity;
 			return;
 		}
@@ -253,48 +159,44 @@
 		const indicatorWidth = moreIndicator?.offsetWidth ?? 60;
 		const containerWidth = measureContainerRef.offsetWidth;
 
+		measuredLineHeight = lineHeight;
+		measuredGap = gap;
+
 		let currentLineTop = tags[0].offsetTop;
 		let currentLine = 1;
-		let lastValidIndex = 1; // Always show at least one tag
+		let lastValidIndex = 0;
 
 		for (let i = 0; i < tags.length; i++) {
 			const tag = tags[i];
 
-			// Check if tag wrapped to new line
 			if (tag.offsetTop > currentLineTop + lineHeight / 2) {
 				currentLine++;
 				currentLineTop = tag.offsetTop;
 			}
 
-			// Exceeded maxLines - use last valid index
 			if (currentLine > maxLines) {
 				break;
 			}
 
-			// Last tag fits within maxLines - show all (no indicator needed)
-			if (i === tags.length - 1) {
-				lastValidIndex = tags.length;
-				break;
-			}
-
-			// Check if "+N more" indicator would fit after this tag on the same line
+			const isLastTag = i === tags.length - 1;
 			const rightEdge = tag.offsetLeft + tag.offsetWidth;
-			const hasRoomForIndicator = containerWidth - rightEdge - gap >= indicatorWidth;
+			const remainingItems = tags.length - (i + 1);
 
-			// On last allowed line, only valid if indicator fits; otherwise always valid
-			if (currentLine < maxLines || hasRoomForIndicator) {
+			if (isLastTag && remainingItems === 0) {
+				lastValidIndex = tags.length;
+			} else if (currentLine < maxLines) {
 				lastValidIndex = i + 1;
+			} else {
+				const hasRoomForIndicator = containerWidth - rightEdge - gap >= indicatorWidth;
+				if (hasRoomForIndicator) {
+					lastValidIndex = i + 1;
+				}
 			}
 		}
 
-		visibleCount = lastValidIndex;
+		visibleCount = Math.max(1, lastValidIndex);
 	}
 
-	// Note: These $effect blocks intentionally mutate $state (triggerWidth, visibleCount).
-	// DOM measurements (ResizeObserver, offsetTop/offsetWidth) are inherently imperative
-	// and cannot be expressed as $derived — $effect with cleanup is the correct pattern here.
-
-	// Track trigger width for dynamic tag max-width
 	$effect(() => {
 		if (!triggerRef) return;
 
@@ -306,10 +208,8 @@
 		return () => resizeObserver.disconnect();
 	});
 
-	// Recalculate when selected values change or container resizes
 	$effect(() => {
-		// Track dependency on selectedValues
-		void selectedValues.length;
+		void selection.selectedValues.length;
 
 		if (!measureContainerRef) return;
 
@@ -324,223 +224,61 @@
 		};
 	});
 
-	// ── Search ────────────────────────────────────────────────────────────
+	$effect(() => {
+		if (!tagsContainerRef || visibleCount === Infinity || selection.selectedValues.length === 0) return;
+		void visibleCount;
 
-	let searchValue = $state('');
+		const rafId = requestAnimationFrame(() => {
+			if (!tagsContainerRef) return;
+			const children = Array.from(tagsContainerRef.children) as HTMLElement[];
+			if (children.length < 2) return;
 
-	const fuse = $derived(
-		new Fuse(items, {
-			keys: ['label', 'keywords'],
-			threshold: 0.3,
-			ignoreLocation: true
-		})
-	);
+			const firstTop = children[0].offsetTop;
+			const threshold = firstTop + children[0].offsetHeight * 0.5;
 
-	const filteredItems = $derived.by(() => {
-		if (!searchValue.trim()) return items;
-		return fuse.search(searchValue.trim()).map((result) => result.item);
-	});
-
-	const isSearching = $derived(searchValue.trim().length > 0);
-
-	// ── Group data (cached) ───────────────────────────────────────────────
-
-	const hasGroups = $derived(items.some((item) => item.group));
-
-	// Pre-compute group → items mapping from filtered items
-	const groupItemsMap = $derived.by(() => {
-		const map = Object.create(null) as Record<string, T[]>;
-		for (const item of filteredItems) {
-			const key = item.group || ungroupedLabel;
-			if (!map[key]) map[key] = [];
-			map[key].push(item);
-		}
-		return map;
-	});
-
-	// Stable group order derived from original items (not affected by search filtering).
-	// Caches the result and only recomputes when the group sequence actually changes.
-	let prevGroupKey = '';
-	let cachedGroupOrder: string[] = [];
-	const stableGroupOrder = $derived.by(() => {
-		const order: string[] = [];
-		const seen = Object.create(null) as Record<string, true>;
-		for (const item of items) {
-			if (item.group && !seen[item.group]) {
-				seen[item.group] = true;
-				order.push(item.group);
-			}
-		}
-		const key = order.join('\0');
-		if (key !== prevGroupKey) {
-			prevGroupKey = key;
-			cachedGroupOrder = order;
-		}
-		return cachedGroupOrder;
-	});
-
-	// Create a flat list with group headers for virtualized rendering
-	const flatListWithGroups = $derived.by<FlatListItem<T>[]>(() => {
-		if (!hasGroups) return filteredItems;
-
-		const hasUngrouped = filteredItems.some((item) => !item.group);
-
-		const result: FlatListItem<T>[] = [];
-
-		for (const groupName of stableGroupOrder) {
-			const groupItems = groupItemsMap[groupName];
-			if (groupItems && groupItems.length > 0) {
-				result.push({ _isGroupHeader: true, group: groupName } as GroupHeaderItem);
-				result.push(...groupItems);
-			}
-		}
-
-		if (hasUngrouped) {
-			const ungroupedItems = groupItemsMap[ungroupedLabel];
-			if (ungroupedItems && ungroupedItems.length > 0) {
-				if (result.length > 0) {
-					result.push({ _isGroupHeader: true, group: ungroupedLabel } as GroupHeaderItem);
+			for (let i = children.length - 1; i >= 1; i--) {
+				if (children[i].offsetTop > threshold) {
+					visibleCount = Math.max(1, visibleCount - 1);
+					return;
 				}
-				result.push(...ungroupedItems);
 			}
-		}
+		});
 
-		return result;
+		return () => cancelAnimationFrame(rafId);
 	});
 
-	// ── Selection actions ─────────────────────────────────────────────────
+	// ── Event handlers (DOM-coupled wrappers) ───────────────────────────
 
 	function closeAndFocusTrigger() {
 		open = false;
-		searchValue = '';
+		search.reset();
 		tick().then(() => triggerRef?.focus());
 	}
 
-	function handleItemSelect(itemValue: string) {
-		if (disabledLookup[itemValue]) return;
-		if (type === 'single') {
-			value = itemValue;
-			onchange?.(value);
-			closeAndFocusTrigger();
-		} else {
-			const currentValues = Array.isArray(value) ? value : [];
-			if (selectedLookup[itemValue]) {
-				value = currentValues.filter((v) => v !== itemValue);
-			} else {
-				value = [...currentValues, itemValue];
-			}
-			onchange?.(value);
-		}
-	}
-
-	function removeItem(itemValue: string, e: Event) {
+	function handleRemoveItem(itemValue: string, e: Event) {
 		e.stopPropagation();
-		if (disabledLookup[itemValue]) return;
-		if (Array.isArray(value)) {
-			value = value.filter((v) => v !== itemValue);
-			onchange?.(value);
-		}
+		selection.removeItem(itemValue);
 		tick().then(() => triggerRef?.focus());
 	}
 
-	function clearAll(e: Event) {
+	function handleClearAll(e: Event) {
 		e.preventDefault();
 		e.stopPropagation();
-		if (type === 'multiple') {
-			value = Array.isArray(value) ? value.filter((v) => disabledLookup[v]) : [];
-		} else {
-			if (typeof value === 'string' && disabledLookup[value]) return;
-			value = undefined;
-		}
-		onchange?.(value);
+		selection.clearAll();
 		tick().then(() => triggerRef?.focus());
 	}
 
-	function selectAllFiltered() {
-		if (type !== 'multiple') return;
-		const currentValues = Array.isArray(value) ? value : [];
-		const toAdd = filteredItems.filter((item) => !disabledLookup[item.value] && !selectedLookup[item.value]).map((item) => item.value);
-		value = [...currentValues, ...toAdd];
-		onchange?.(value);
-	}
-
-	function clearFiltered(e: Event) {
+	function handleClearFiltered(e: Event) {
 		e.preventDefault();
 		e.stopPropagation();
-		if (type !== 'multiple' || !Array.isArray(value)) return;
-		const filteredLookup = Object.create(null) as Record<string, true>;
-		for (const item of filteredItems) {
-			if (!disabledLookup[item.value]) filteredLookup[item.value] = true;
-		}
-		value = value.filter((v) => !filteredLookup[v]);
-		onchange?.(value);
+		selection.clearFiltered();
 	}
-
-	const allFilteredSelected = $derived.by(() => {
-		if (type !== 'multiple') return false;
-		const enabled = filteredItems.filter((item) => !disabledLookup[item.value]);
-		return enabled.length > 0 && enabled.every((item) => selectedLookup[item.value] === true);
-	});
-
-	const someFilteredSelected = $derived.by(() => {
-		if (type !== 'multiple') return false;
-		const enabled = filteredItems.filter((item) => !disabledLookup[item.value]);
-		return enabled.length > 0 && enabled.some((item) => selectedLookup[item.value] === true);
-	});
-
-	// ── Group-level selection ─────────────────────────────────────────────
-
-	function getGroupItems(groupName: string): T[] {
-		return groupItemsMap[groupName] ?? [];
-	}
-
-	function isGroupAllSelected(groupName: string): boolean {
-		if (type !== 'multiple') return false;
-		const enabled = getGroupItems(groupName).filter((item) => !disabledLookup[item.value]);
-		return enabled.length > 0 && enabled.every((item) => selectedLookup[item.value] === true);
-	}
-
-	function isGroupSomeSelected(groupName: string): boolean {
-		if (type !== 'multiple') return false;
-		return getGroupItems(groupName).some((item) => !disabledLookup[item.value] && selectedLookup[item.value] === true);
-	}
-
-	function selectGroup(groupName: string) {
-		if (type !== 'multiple') return;
-		const currentValues = Array.isArray(value) ? value : [];
-		const groupValues = getGroupItems(groupName).filter((item) => !disabledLookup[item.value]).map((item) => item.value);
-		value = [...currentValues, ...groupValues.filter((v) => !selectedLookup[v])];
-		onchange?.(value);
-	}
-
-	function clearGroup(groupName: string) {
-		if (type !== 'multiple' || !Array.isArray(value)) return;
-		const removeLookup = Object.create(null) as Record<string, true>;
-		for (const item of getGroupItems(groupName)) {
-			if (!disabledLookup[item.value]) removeLookup[item.value] = true;
-		}
-		value = value.filter((v) => !removeLookup[v]);
-		onchange?.(value);
-	}
-
-	// ── Keyboard ─────────────────────────────────────────────────────────
 
 	function handleTriggerKeydown(e: KeyboardEvent) {
-		if (e.key === 'Backspace' && type === 'multiple' && Array.isArray(value) && value.length > 0 && !open) {
-			const lastRemovable = value.findLastIndex((v) => !disabledLookup[v]);
-			if (lastRemovable === -1) return;
+		if (e.key === 'Backspace' && !open && selection.handleBackspace()) {
 			e.preventDefault();
-			value = value.filter((_, i) => i !== lastRemovable);
-			onchange?.(value);
 		}
 	}
-
-	const hasClearableSelection = $derived.by(() => {
-		if (type === 'single') return typeof value === 'string' && !disabledLookup[value];
-		return Array.isArray(value) && value.some((v) => !disabledLookup[v]);
-	});
-
-	// ── Misc ──────────────────────────────────────────────────────────────
 </script>
 
 {#snippet itemRow(item: FlatListItem<T>)}
@@ -556,8 +294,8 @@
 							s.groupText
 						)}
 						aria-label={`Select all in ${item.group}`}
-						disabled={isGroupAllSelected(item.group)}
-						onclick={() => selectGroup(item.group)}
+						disabled={selection.isGroupAllSelected(item.group)}
+						onclick={() => selection.selectGroup(item.group)}
 					>
 						{selectAllLabel}
 					</button>
@@ -568,8 +306,8 @@
 							s.groupText
 						)}
 						aria-label={`Clear ${item.group}`}
-						disabled={!isGroupSomeSelected(item.group)}
-						onclick={() => clearGroup(item.group)}
+						disabled={!selection.isGroupSomeSelected(item.group)}
+						onclick={() => selection.clearGroup(item.group)}
 					>
 						{clearAllLabel}
 					</button>
@@ -577,8 +315,8 @@
 			{/if}
 		</div>
 	{:else}
-		<Command.Item value={item.value} disabled={item.disabled} onSelect={() => handleItemSelect(item.value)} title={item.label}>
-			<CheckIcon class={cn(!isSelected(item.value) && 'text-transparent')} />
+		<Command.Item value={item.value} disabled={item.disabled} onSelect={() => selection.handleItemSelect(item.value)} title={item.label}>
+			<CheckIcon class={cn(!selection.isSelected(item.value) && 'text-transparent')} />
 			{#if itemSnippet}
 				{@render itemSnippet(item)}
 			{:else}
@@ -591,7 +329,7 @@
 <Popover.Root
 	bind:open
 	onOpenChange={(isOpen) => {
-		if (!isOpen) searchValue = '';
+		if (!isOpen) search.reset();
 	}}
 >
 	<Popover.Trigger bind:ref={triggerRef} {disabled}>
@@ -602,7 +340,7 @@
 				class={cn(
 					'relative w-full min-w-32 cursor-pointer justify-between',
 					s.text,
-					type === 'multiple' && selectedValues.length > 0 ? s.triggerMulti : s.trigger,
+					type === 'multiple' && selection.selectedValues.length > 0 ? s.triggerMulti : s.trigger,
 					disabled && 'pointer-events-none opacity-50',
 					customClass
 				)}
@@ -613,12 +351,12 @@
 				{disabled}
 			>
 				{#if type === 'single'}
-					{#if selectedItem && selectedSnippet}
-						<span class="min-w-0 flex-1 truncate text-left">{@render selectedSnippet(selectedItem)}</span>
+					{#if selection.selectedItem && selectedSnippet}
+						<span class="min-w-0 flex-1 truncate text-left">{@render selectedSnippet(selection.selectedItem)}</span>
 					{:else}
-						<span class="min-w-0 flex-1 truncate text-left">{selectedLabel || placeholder}</span>
+						<span class="min-w-0 flex-1 truncate text-left">{selection.selectedLabel || placeholder}</span>
 					{/if}
-				{:else if selectedValues.length > 0}
+				{:else if selection.selectedValues.length > 0}
 					<div
 						bind:this={measureContainerRef}
 						class={cn('pointer-events-none absolute inset-y-0 flex flex-wrap content-start items-start opacity-0', s.measureContainer)}
@@ -643,7 +381,11 @@
 						</span>
 					</div>
 					<!-- Visible tags container -->
-					<div class={cn('flex flex-1 flex-wrap content-start items-start', s.tagContainer)}>
+					<div
+						bind:this={tagsContainerRef}
+						class={cn('flex flex-1 flex-wrap content-start items-start overflow-hidden', s.tagContainer)}
+						style:max-height={containerMaxHeight}
+					>
 						{#each visibleTags as tag (tag.value)}
 							<span
 								class={cn('inline-flex items-center bg-secondary font-medium text-secondary-foreground', s.tag)}
@@ -661,7 +403,7 @@
 										variant="ghost"
 										size="icon"
 										class={cn('shrink-0 cursor-pointer hover:ring-1 hover:ring-border', s.tagRemoveBtn)}
-										onclick={(e) => removeItem(tag.value, e)}
+										onclick={(e) => handleRemoveItem(tag.value, e)}
 									>
 										<XIcon class={s.tagRemoveIcon} />
 										<span class="sr-only">Remove {tag.label}</span>
@@ -679,8 +421,8 @@
 					<span class="truncate">{placeholder}</span>
 				{/if}
 				<div class="flex shrink-0 items-center gap-1">
-					{#if hasClearableSelection}
-						<Button type="button" variant="ghost" size="icon" class={cn('hover:bg-muted', s.clearBtn)} onclick={clearAll}>
+					{#if selection.hasClearableSelection}
+						<Button type="button" variant="ghost" size="icon" class={cn('hover:bg-muted', s.clearBtn)} onclick={handleClearAll}>
 							<XIcon class={s.clearIcon} />
 							<span class="sr-only">{clearAllLabel}</span>
 						</Button>
@@ -694,12 +436,12 @@
 		<Popover.Content onCloseAutoFocus={(e) => e.preventDefault()} class="w-(--bits-popover-anchor-width) p-0">
 			<Command.Root shouldFilter={false}>
 				{#if searchable}
-					<Command.Input placeholder={searchPlaceholder} bind:value={searchValue} {...inputProps} />
+					<Command.Input placeholder={searchPlaceholder} bind:value={search.searchValue} {...inputProps} />
 				{/if}
-				{#if type === 'multiple' && filteredItems.length > 0}
+				{#if type === 'multiple' && search.filteredItems.length > 0}
 					<div class={cn('flex items-center justify-between border-b', s.statusBar)}>
 						<span class={cn('text-muted-foreground', s.statusText)}>
-							{selectedValues.length} of {items.length} selected
+							{selection.selectedValues.length} of {items.length} selected
 						</span>
 						<div class="flex gap-1">
 							<Button
@@ -707,13 +449,20 @@
 								variant="ghost"
 								size="sm"
 								class={s.actionBtn}
-								disabled={allFilteredSelected}
-								onclick={selectAllFiltered}
+								disabled={selection.allFilteredSelected}
+								onclick={() => selection.selectAllFiltered()}
 							>
 								{selectAllLabel}
 							</Button>
-							<Button type="button" variant="ghost" size="sm" class={s.actionBtn} disabled={!someFilteredSelected} onclick={clearFiltered}>
-								{isSearching ? 'Clear filtered' : clearAllLabel}
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								class={s.actionBtn}
+								disabled={!selection.someFilteredSelected}
+								onclick={handleClearFiltered}
+							>
+								{search.isSearching ? 'Clear filtered' : clearAllLabel}
 							</Button>
 						</div>
 					</div>
@@ -728,7 +477,7 @@
 					<Command.Group>
 						{#if searchable}
 							<VList
-								data={flatListWithGroups}
+								data={groups.flatList}
 								style="height: {listHeight}"
 								getKey={(item: FlatListItem<T>) => (isGroupHeader(item) ? `__group__${item.group}` : item.value)}
 							>
@@ -737,7 +486,7 @@
 								{/snippet}
 							</VList>
 						{:else}
-							{#each flatListWithGroups as item (isGroupHeader(item) ? `__group__${item.group}` : item.value)}
+							{#each groups.flatList as item (isGroupHeader(item) ? `__group__${item.group}` : item.value)}
 								{@render itemRow(item)}
 							{/each}
 						{/if}

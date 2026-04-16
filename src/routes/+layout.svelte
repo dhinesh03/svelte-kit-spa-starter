@@ -9,7 +9,7 @@
 </script>
 
 <svelte:head>
-	<title>SvelteKit SPA Starter</title>
+	<title>HT SvelteKit SPA Starter</title>
 	<meta name="description" content="SvelteKit SPA starter with Svelte 5, Tailwind CSS, and shadcn-svelte components" />
 	<link rel="icon" href={favicon} />
 </svelte:head>

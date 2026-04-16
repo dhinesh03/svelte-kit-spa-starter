@@ -70,15 +70,6 @@ interface UploadOptions extends Omit<RequestOptions, 'method' | 'payload'> {
 	method?: 'POST' | 'PUT' | 'PATCH';
 }
 
-/** Options for SSE connections */
-interface SSEOptions {
-	/** External AbortSignal for cancellation */
-	signal?: AbortSignal;
-}
-
-/** Constructor type for EventSource with fetch option (requires polyfill) */
-type EventSourceConstructor = new (url: string | URL, init?: EventSourceInit & { fetch?: typeof fetch }) => EventSource;
-
 /** Prepared request configuration returned by buildRequestConfig */
 interface PreparedRequest {
 	url: string;
@@ -584,52 +575,7 @@ class FetchService {
 
 		return { request: requestPromise(), cancel };
 	}
-
-	/**
-	 * Subscribes to a Server-Sent Events endpoint.
-	 *
-	 * NOTE: Requires an EventSource polyfill that supports the `fetch` option
-	 * (e.g., @microsoft/fetch-event-source) for authenticated connections.
-	 * Standard EventSource does not support custom headers.
-	 *
-	 * @param endpoint - SSE endpoint
-	 * @param options - SSE options
-	 */
-	public async subscribeToSSE(endpoint: string, options: SSEOptions = {}): Promise<EventSource> {
-		const url = this.buildUrl(endpoint);
-		const needsAuth = !!this.getAuthToken;
-
-		// Verify the EventSource constructor accepts a `fetch` option (polyfill required for auth)
-		if (needsAuth) {
-			const proto = Object.getPrototypeOf(EventSource.prototype) as Record<string, unknown> | null;
-			const constructorAcceptsFetch =
-				(proto !== null && 'fetch' in proto) || 'fetch' in (EventSource as unknown as Record<string, unknown>);
-			if (!constructorAcceptsFetch) {
-				throw new Error('Authenticated SSE requires an EventSource polyfill that supports the fetch option (e.g., extended-eventsource).');
-			}
-		}
-
-		const getAuthToken = this.getAuthToken;
-		const EventSourceWithFetch = EventSource as unknown as EventSourceConstructor;
-
-		const eventSource = new EventSourceWithFetch(url, {
-			fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
-				const freshToken = getAuthToken ? await getAuthToken() : null;
-				return fetch(input, {
-					...init,
-					signal: options.signal,
-					headers: {
-						...init?.headers,
-						Accept: 'text/event-stream',
-						...(freshToken ? { Authorization: `Bearer ${freshToken}` } : {})
-					}
-				});
-			}
-		});
-
-		return eventSource;
-	}
 }
 
 export { FetchService, FetchError };
-export type { RequestOptions, RequestResult, UploadProgressEvent, CancellableRequest, FetchServiceConfig, UploadOptions, SSEOptions };
+export type { RequestOptions, RequestResult, UploadProgressEvent, CancellableRequest, FetchServiceConfig, UploadOptions };

@@ -35,8 +35,12 @@ src/
 │   │   └── <custom>/      # Custom reusable components (combobox, sortable-list, file-upload, etc.)
 │   ├── features/          # Feature-specific logic and initialization especially *.svelte.ts files (e.g., ag-grid, plotly, transitions)
 │   ├── hooks/             # Reactive hooks as .svelte.ts files
-│   ├── services/          # FetchService (HTTP client), AuthService (Azure AD/MSAL), NavigationClient
-│   └── utils.ts           # Shared utilities (cn, helpers)
+│   ├── services/
+│   │   ├── fetch/         # FetchService, fetchData bridge, SSE, pre-configured API instances (barrel index.ts)
+│   │   ├── auth-service.ts      # AuthService (Azure AD/MSAL) — uses createSubscriber, NOT runes
+│   │   └── navigation-client.ts # SvelteKit NavigationClient for MSAL
+│   ├── utils.ts           # Tailwind merge (cn), type utilities
+│   └── helpers.ts         # Event helpers (makeDebounce)
 ├── routes/
 │   ├── +layout.svelte     # Root layout
 │   ├── +layout.ts         # SPA config
@@ -48,22 +52,23 @@ src/
 
 Detailed rules are split by concern and auto-loaded by Claude Code:
 
-| Rule file                  | Scope                                             | What it covers                                                 |
-| -------------------------- | ------------------------------------------------- | -------------------------------------------------------------- |
-| `state-management.md`      | All files                                         | Svelte 5 runes, class-based state pattern, context API         |
-| `api-conventions.md`       | `src/lib/apis/**`, `src/lib/services/**`          | CancellableRequest pattern, FetchService, API module structure |
-| `component-conventions.md` | `src/lib/components/**`, `src/routes/**/*.svelte` | Component lookup order, shadcn-svelte, theming                 |
-| `code-style.md`            | All files                                         | TypeScript strict, imports, formatting, testing                |
+| Rule file                  | Scope                                             | What it covers                                                          |
+| -------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------- |
+| `state-management.md`      | All files                                         | Svelte 5 runes, class-based state, context API, file extension rules    |
+| `api-conventions.md`       | `src/lib/apis/**`, `src/lib/services/**`          | FetchService+auth, fetchData bridge, API module pattern, error handling |
+| `component-conventions.md` | `src/lib/components/**`, `src/routes/**/*.svelte` | Component lookup order, shadcn-svelte, theming                          |
+| `code-style.md`            | All files                                         | TypeScript strict, imports, formatting, testing                         |
+| `project-rules.md`         | All files                                         | Project-specific conventions and overrides (owned — edit freely)        |
 
-### Adding a New Route
+## Adding a New Route
 
 1. Create `src/routes/<name>/+page.svelte`
 2. If the route needs shared state, add `+layout.svelte` and a `stores/` directory
-3. Add navigation entry in the sidebar configuration
+3. Add navigation entry in the parent layout's sidebar nav items array
 
 ## Skills (`.claude/skills/`)
 
-Project-level skills provide Svelte 5 and SvelteKit reference documentation. Use them when working on any Svelte task:
+Project-level skills provide reference documentation and workflows. Use them when working on Svelte tasks or codifying project conventions:
 
 | Task                                       | Skills to load                                             |
 | ------------------------------------------ | ---------------------------------------------------------- |
@@ -79,3 +84,12 @@ Project-level skills provide Svelte 5 and SvelteKit reference documentation. Use
 | Remote functions (.remote.ts)              | `sveltekit-remote-functions`                               |
 | Reactive utilities (runed library)         | `runed`                                                    |
 | CSS, theming, class attributes             | `svelte-styling`                                           |
+| Codify developer instructions into rules   | `codify-instruction`                                       |
+
+## Codifying Developer Instructions
+
+When a developer states a convention, constraint, or architectural decision — phrases like "always use X", "never do Y", "from now on", "enforce this", or "make this a rule" — invoke `/codify-instruction` to transform it into a properly formatted rule and save it to `CLAUDE.local.md` (for project-level info) or `.claude/rules/project-rules.md` (for coding conventions). **Never modify managed files** (`CLAUDE.md`, `.claude/rules/code-style.md`, etc.) — they are overwritten on `claude-setup update`.
+
+## Project-Specific Instructions
+
+@CLAUDE.local.md

@@ -6,7 +6,7 @@
  *
  * @example
  * ```ts
- * import { jsonPlaceholderApi } from '$lib/services/api-service';
+ * import { jsonPlaceholderApi } from '$lib/services/fetch';
  *
  * const { request, cancel } = jsonPlaceholderApi.get<Post[]>('/posts', {
  *   params: { userId: 1 },

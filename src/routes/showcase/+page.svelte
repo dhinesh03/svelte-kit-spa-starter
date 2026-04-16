@@ -5,7 +5,7 @@
 	import ChartCandlestick from '@lucide/svelte/icons/chart-candlestick';
 	import Component from '@lucide/svelte/icons/component';
 	import Globe from '@lucide/svelte/icons/globe';
-	import Table from '@lucide/svelte/icons/table';
+	import TableIcon from '@lucide/svelte/icons/table';
 	import Upload from '@lucide/svelte/icons/upload';
 
 	const features = [
@@ -25,19 +25,20 @@
 			tags: ['File Upload', 'Progress', 'Validation']
 		},
 		{
-			title: 'AG Grid',
-			description: 'Data grids powered by AG Grid Community with Quartz theme, sorting, filtering, pagination, and row selection.',
-			href: '/showcase/ag-grid' as const,
-			icon: Table,
-			tags: ['Data Grid', 'Sorting', 'Filtering']
-		},
-		{
 			title: 'Charts',
 			description:
 				'Commodity trading charts powered by Plotly.js with candlestick, forward curves, calendar spreads, and seasonal heatmaps.',
 			href: '/showcase/charts' as const,
 			icon: ChartCandlestick,
 			tags: ['Plotly', 'Candlestick', 'Forward Curve', 'Heatmap']
+		},
+		{
+			title: 'Live Table',
+			description:
+				'High-frequency data updates with AG Grid showcasing simulated real-time market data, configurable update speeds, and efficient cell-level refreshes.',
+			href: '/showcase/live-table' as const,
+			icon: TableIcon,
+			tags: ['AG Grid', 'Real-time', 'Market Data']
 		},
 		{
 			title: 'API + Resource',

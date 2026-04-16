@@ -157,13 +157,13 @@
 	}
 
 	const sources = [
-		{ name: 'Natural Gas', base: 150, amplitude: 40, peak: 7, color: '#e45756' },
-		{ name: 'Coal', base: 55, amplitude: 15, peak: 7, color: '#72513e' },
-		{ name: 'Nuclear', base: 65, amplitude: 5, peak: 1, color: '#8b5cf6' },
-		{ name: 'Wind', base: 40, amplitude: 12, peak: 3, color: '#22c55e' },
-		{ name: 'Hydro', base: 22, amplitude: 8, peak: 4, color: '#3b82f6' },
-		{ name: 'Solar', base: 20, amplitude: 15, peak: 6, color: '#f59e0b' },
-		{ name: 'Other Renewables', base: 10, amplitude: 2, peak: 6, color: '#06b6d4' }
+		{ name: 'Natural Gas', base: 150, amplitude: 40, peak: 7 },
+		{ name: 'Coal', base: 55, amplitude: 15, peak: 7 },
+		{ name: 'Nuclear', base: 65, amplitude: 5, peak: 1 },
+		{ name: 'Wind', base: 40, amplitude: 12, peak: 3 },
+		{ name: 'Hydro', base: 22, amplitude: 8, peak: 4 },
+		{ name: 'Solar', base: 20, amplitude: 15, peak: 6 },
+		{ name: 'Other Renewables', base: 10, amplitude: 2, peak: 6 }
 	];
 
 	const stackedBarData: Data[] = sources.map((src) => ({
@@ -173,8 +173,7 @@
 			return Math.round(seasonalPattern(m, src.base, src.amplitude, src.peak));
 		}),
 		type: 'bar' as const,
-		name: src.name,
-		marker: { color: src.color }
+		name: src.name
 	}));
 </script>
 
@@ -254,8 +253,7 @@
 							height: 400,
 							xaxis: { title: { text: 'Tenor' }, tickangle: -45, rangeslider: { visible: showRangesliderForwardCurve } },
 							yaxis: { title: { text: 'Price ($/bbl)' } },
-							hovermode: 'x unified',
-							legend: { orientation: 'h', y: -0.25 }
+							hovermode: 'x unified'
 						}
 					})}
 				></div>
@@ -289,7 +287,6 @@
 							xaxis: { title: { text: 'Date' }, rangeslider: { visible: showRangesliderSpread } },
 							yaxis: { title: { text: 'Spread ($/bbl)' } },
 							hovermode: 'x unified',
-							legend: { orientation: 'h', y: -0.2 },
 							shapes: [
 								{
 									type: 'line',
@@ -334,8 +331,7 @@
 							barmode: 'stack',
 							xaxis: { title: { text: 'Month' }, tickangle: -45, rangeslider: { visible: showRangesliderStackedBar } },
 							yaxis: { title: { text: 'Generation (TWh)' } },
-							hovermode: 'x unified',
-							legend: { orientation: 'h', y: -0.25 }
+							hovermode: 'x unified'
 						}
 					})}
 				></div>
@@ -349,7 +345,8 @@
 				<div class="flex items-start justify-between">
 					<div>
 						<Card.Title>Seasonal Heatmap</Card.Title>
-						<Card.Description>Monthly price change patterns across years. Identifies seasonal trends in commodity pricing.</Card.Description>
+						<Card.Description>Monthly price change patterns across years. Identifies seasonal trends in commodity pricing.</Card.Description
+						>
 					</div>
 					<div class="flex items-center gap-2">
 						<Label for="rs-heatmap" class="text-xs text-muted-foreground">Range Slider</Label>

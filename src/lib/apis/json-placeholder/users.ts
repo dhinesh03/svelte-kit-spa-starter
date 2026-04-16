@@ -1,13 +1,13 @@
-import type { CancellableRequest } from '$lib/services/fetch-service';
+import type { CancellableRequest } from '$lib/services/fetch';
 
-import { jsonPlaceholderApi } from '$lib/services/api-service';
+import { jsonPlaceholderApi } from '$lib/services/fetch';
 
 import type { User } from './types';
 
-export function getUsers(): CancellableRequest<User[]> {
-	return jsonPlaceholderApi.get<User[]>('/users');
+export function getUsers(signal?: AbortSignal): CancellableRequest<User[]> {
+	return jsonPlaceholderApi.get<User[]>('/users', { signal });
 }
 
-export function getUser(id: number): CancellableRequest<User> {
-	return jsonPlaceholderApi.get<User>(`/users/${id}`);
+export function getUser(id: number, signal?: AbortSignal): CancellableRequest<User> {
+	return jsonPlaceholderApi.get<User>(`/users/${id}`, { signal });
 }

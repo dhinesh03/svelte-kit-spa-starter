@@ -4,12 +4,13 @@
 	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+	import BellRingIcon from '@lucide/svelte/icons/bell-ring';
 	import ChartCandlestick from '@lucide/svelte/icons/chart-candlestick';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import Component from '@lucide/svelte/icons/component';
 	import Globe from '@lucide/svelte/icons/globe';
 	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
-	import Table from '@lucide/svelte/icons/table';
+	import TableIcon from '@lucide/svelte/icons/table';
 	import UploadIcon from '@lucide/svelte/icons/upload';
 
 	let { children } = $props();
@@ -18,8 +19,9 @@
 		{ title: 'Dashboard', href: '/showcase' as const, icon: LayoutDashboard },
 		{ title: 'Components', href: '/showcase/components' as const, icon: Component },
 		{ title: 'File Upload', href: '/showcase/file-upload' as const, icon: UploadIcon },
-		{ title: 'AG Grid', href: '/showcase/ag-grid' as const, icon: Table },
 		{ title: 'Charts', href: '/showcase/charts' as const, icon: ChartCandlestick },
+		{ title: 'Toast', href: '/showcase/toast' as const, icon: BellRingIcon },
+		{ title: 'Live Table', href: '/showcase/live-table' as const, icon: TableIcon },
 		{ title: 'API + Resource', href: '/showcase/api' as const, icon: Globe }
 	];
 

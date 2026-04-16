@@ -5,10 +5,12 @@ type PartialLayout = Partial<Layout>;
 const sharedAxisLight = { gridcolor: '#e5e5e5', zerolinecolor: '#d4d4d4', linecolor: '#d4d4d4' };
 const sharedAxisDark = { gridcolor: '#333333', zerolinecolor: '#444444', linecolor: '#444444' };
 
+export const CHART_FONT_SIZE = 12;
+
 export const lightLayout: PartialLayout = {
 	paper_bgcolor: 'transparent',
 	plot_bgcolor: '#ffffff',
-	font: { color: '#1a1a1a', family: 'Inter Variable, system-ui, sans-serif', size: 12 },
+	font: { color: '#1a1a1a', size: CHART_FONT_SIZE },
 	title: { font: { color: '#1a1a1a' } },
 	xaxis: {
 		...sharedAxisLight,
@@ -48,7 +50,7 @@ export const lightLayout: PartialLayout = {
 export const darkLayout: PartialLayout = {
 	paper_bgcolor: 'transparent',
 	plot_bgcolor: '#1a1a1a',
-	font: { color: '#e5e5e5', family: 'Inter Variable, system-ui, sans-serif', size: 12 },
+	font: { color: '#e5e5e5', size: CHART_FONT_SIZE },
 	title: { font: { color: '#e5e5e5' } },
 	xaxis: {
 		...sharedAxisDark,
