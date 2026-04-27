@@ -3,6 +3,7 @@ import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import { createGrid, type GridApi, type GridOptions } from 'ag-grid-community';
 import { colorSchemeDark, colorSchemeLight, themeQuartz } from 'ag-grid-community';
 import { mode } from 'mode-watcher';
+import { untrack } from 'svelte';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -32,7 +33,7 @@ function applyTheme(gridApi: GridApi, currentMode: string | undefined) {
 // Attachment function to initialize the grid
 export function initAGgrid<T>(gridOptions: GridOptions<T>, onResize?: (api: GridApi) => void) {
 	return (node: HTMLElement) => {
-		const gridApi = createGrid(node, gridOptions);
+		const gridApi = untrack(() => createGrid(node, gridOptions));
 
 		const debouncedResize = makeDebounce(() => {
 			if (onResize) {

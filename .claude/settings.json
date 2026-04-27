@@ -31,7 +31,7 @@
 			"mcp__playwright__browser_install"
 		],
 		"deny": ["Bash(rm -rf *)", "Read(./.env)"],
-		"defaultMode": "acceptEdits"
+		"defaultMode": "auto"
 	},
 	"enableAllProjectMcpServers": true,
 	"enabledMcpjsonServers": ["svelte"],

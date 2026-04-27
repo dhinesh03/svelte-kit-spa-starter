@@ -70,11 +70,11 @@ function buildTick(instrument: (typeof INSTRUMENTS)[number], price: number, high
 }
 
 export class LiveMarketData {
-	rows = $state<MarketTick[]>([]);
 	updatesPerSecond = $state(10);
 	isRunning = $state(false);
 	totalUpdates = $state(0);
 
+	private _initialRows: MarketTick[] = [];
 	private prices: number[] = [];
 	private highs: number[] = [];
 	private lows: number[] = [];
@@ -87,7 +87,11 @@ export class LiveMarketData {
 		this.highs = [...this.prices];
 		this.lows = [...this.prices];
 		this.volumes = INSTRUMENTS.map(() => Math.floor(Math.random() * 5_000_000) + 1_000_000);
-		this.rows = INSTRUMENTS.map((inst, i) => buildTick(inst, this.prices[i], this.highs[i], this.lows[i], this.volumes[i]));
+		this._initialRows = INSTRUMENTS.map((inst, i) => buildTick(inst, this.prices[i], this.highs[i], this.lows[i], this.volumes[i]));
+	}
+
+	get initialRows(): MarketTick[] {
+		return this._initialRows;
 	}
 
 	setGridApi(api: GridApi) {
@@ -127,7 +131,7 @@ export class LiveMarketData {
 	}
 
 	private applyTicks(count: number) {
-		const updatedNodes: { rowIndex: number; data: MarketTick }[] = [];
+		const updatedTicks: MarketTick[] = [];
 
 		for (let t = 0; t < count; t++) {
 			const idx = Math.floor(Math.random() * INSTRUMENTS.length);
@@ -138,24 +142,22 @@ export class LiveMarketData {
 			this.lows[idx] = Math.min(this.lows[idx], this.prices[idx]);
 
 			const tick = buildTick(INSTRUMENTS[idx], this.prices[idx], this.highs[idx], this.lows[idx], this.volumes[idx]);
-			this.rows[idx] = tick;
-			updatedNodes.push({ rowIndex: idx, data: tick });
+			updatedTicks.push(tick);
 			this.totalUpdates++;
 		}
 
-		if (this.gridApi) {
-			const rowNodes: import('ag-grid-community').IRowNode[] = [];
-			for (const { rowIndex } of updatedNodes) {
-				const node = this.gridApi.getDisplayedRowAtIndex(rowIndex);
-				if (node) {
-					node.setData(updatedNodes.find((u) => u.rowIndex === rowIndex)!.data);
-					rowNodes.push(node);
-				}
-			}
-			if (rowNodes.length > 0) {
-				this.gridApi.refreshCells({ rowNodes, force: true });
-			}
-		}
+		this.gridApi?.applyTransaction({ update: updatedTicks });
+	}
+
+	reset() {
+		this.stop();
+		this.prices = INSTRUMENTS.map((i) => i.open);
+		this.highs = [...this.prices];
+		this.lows = [...this.prices];
+		this.volumes = INSTRUMENTS.map(() => Math.floor(Math.random() * 5_000_000) + 1_000_000);
+		this._initialRows = INSTRUMENTS.map((inst, i) => buildTick(inst, this.prices[i], this.highs[i], this.lows[i], this.volumes[i]));
+		this.totalUpdates = 0;
+		this.gridApi?.setGridOption('rowData', this._initialRows);
 	}
 
 	destroy() {

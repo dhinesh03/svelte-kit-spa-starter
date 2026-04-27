@@ -32,3 +32,5 @@ vite.config.ts.timestamp-*
 
 # CI screenshots (should never be committed)
 screenshots/
+
+.superpowers

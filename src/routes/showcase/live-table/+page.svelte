@@ -118,11 +118,7 @@
 	}
 
 	function handleReset() {
-		market.destroy();
-		const fresh = new LiveMarketData();
-		market.rows = fresh.rows;
-		market.totalUpdates = 0;
-		market.isRunning = false;
+		market.reset();
 	}
 
 	$effect(() => {
@@ -195,11 +191,11 @@
 				{@attach initAGgrid<MarketTick>(
 					{
 						columnDefs,
-						rowData: market.rows,
 						getRowId: (params) => params.data.symbol,
 						animateRows: false,
 						onGridReady: (event) => {
 							market.setGridApi(event.api);
+							event.api.setGridOption('rowData', market.initialRows);
 							market.start();
 						}
 					},

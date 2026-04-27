@@ -8,8 +8,10 @@
 			"command": "npx",
 			"args": [
 				"@playwright/mcp@latest",
-				"--browser",
-				"chromium"
+				"--headless",
+				"--vision",
+				"--output-dir",
+				"/tmp/playwright-screenshots"
 			]
 		}
 	}

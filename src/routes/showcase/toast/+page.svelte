@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -24,6 +25,15 @@
 
 	function logEvent(msg: string) {
 		eventLog = [...eventLog.slice(-4), msg];
+	}
+
+	// ── Dismiss All — workaround for svelte-sonner heights race condition
+	async function dismissAll() {
+		const active = toast.getActiveToasts();
+		for (const t of active) {
+			toast.dismiss(t.id);
+			await tick();
+		}
 	}
 </script>
 
@@ -360,7 +370,7 @@
 					>
 						Show 3 Toasts
 					</Button>
-					<Button variant="destructive" onclick={() => toast.dismiss()}>Dismiss All</Button>
+					<Button variant="destructive" onclick={dismissAll}>Dismiss All</Button>
 				</Card.Content>
 			</Card.Root>
 		</div>
