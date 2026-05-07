@@ -11,6 +11,7 @@ Each question includes context for why it matters to the orchestrator. Questions
 **Why it matters**: The orchestrator needs to know the dependency graph direction. A pure consumer (leaf node) never receives issues as a dependency of another repo's task. A producer may need paired issues when its API/schema changes.
 
 **Probe for**:
+
 - **Frontend**: Other frontends embedding/iframing this one; shared component packages
 - **Backend**: Frontend clients, other backend consumers, mobile apps, third-party integrations
 - **Pipeline**: Downstream pipelines, APIs that serve processed data, dashboards, reports
@@ -25,15 +26,15 @@ Each question includes context for why it matters to the orchestrator. Questions
 
 **Auto-detect from codebase based on project type, then present for validation:**
 
-| Frontend | Backend API | Data Pipeline | Library | Infra |
-|----------|-------------|---------------|---------|-------|
-| UI/UX/styling | New endpoint | New pipeline/DAG | New public API | New resource |
-| New route/page | Schema change | Source/connector change | Breaking change | Scaling change |
-| Grid/table changes | Auth/middleware | Transformation logic | Bug fix | Security/IAM |
-| Real-time features | Performance/caching | Scheduling change | Deprecation | Networking |
-| State management | Integration (new service) | Data quality/validation | Docs/examples | Monitoring |
-| Auth/access control | Database migration | Monitoring/alerting | Version bump | Cost optimization |
-| Bug fix | Bug fix | Bug fix | | Disaster recovery |
+| Frontend            | Backend API               | Data Pipeline           | Library         | Infra             |
+| ------------------- | ------------------------- | ----------------------- | --------------- | ----------------- |
+| UI/UX/styling       | New endpoint              | New pipeline/DAG        | New public API  | New resource      |
+| New route/page      | Schema change             | Source/connector change | Breaking change | Scaling change    |
+| Grid/table changes  | Auth/middleware           | Transformation logic    | Bug fix         | Security/IAM      |
+| Real-time features  | Performance/caching       | Scheduling change       | Deprecation     | Networking        |
+| State management    | Integration (new service) | Data quality/validation | Docs/examples   | Monitoring        |
+| Auth/access control | Database migration        | Monitoring/alerting     | Version bump    | Cost optimization |
+| Bug fix             | Bug fix                   | Bug fix                 |                 | Disaster recovery |
 
 **Ask**: "Are there categories I'm missing? Are there categories that SOUND like they'd involve this repo but actually need NO changes here (or vice versa)?"
 
@@ -44,6 +45,7 @@ Each question includes context for why it matters to the orchestrator. Questions
 **Why it matters**: If no shared contract, the orchestrator must create paired issues when interfaces change.
 
 **Probe by type**:
+
 - **Frontend ↔ Backend**: OpenAPI/Swagger, GraphQL schema, shared types package, or manual sync?
 - **Backend ↔ Backend**: gRPC proto files, OpenAPI, shared SDK, or ad-hoc?
 - **Pipeline ↔ Consumers**: Avro/Protobuf schemas, JSON Schema, data catalog, or implicit?
@@ -81,7 +83,7 @@ Each question includes context for why it matters to the orchestrator. Questions
 
 Use this exact structure. Every section is mandatory. Mark inapplicable sections as "N/A — [reason]" rather than omitting them. Replace placeholders with actual data.
 
-```markdown
+````markdown
 # {repo-name} — Orchestrator Wiki
 
 > This wiki is consumed by an orchestrator agent that receives ambiguous tasks and must determine which repositories are affected. It describes what this repo owns, what it depends on, and the signals that indicate a task involves this repo.
@@ -121,9 +123,9 @@ This repo does **NOT** own:
 {For pipelines: list output datasets/tables/topics.}
 {For frontends: typically "N/A — pure consumer."}
 
-| Method | Path / Interface | Purpose |
-|--------|-----------------|---------|
-| {GET/POST/...} | {path} | {purpose} |
+| Method         | Path / Interface | Purpose   |
+| -------------- | ---------------- | --------- |
+| {GET/POST/...} | {path}           | {purpose} |
 
 ### APIs/Services CONSUMED (if applicable)
 
@@ -131,16 +133,16 @@ This repo does **NOT** own:
 {For backends: downstream services, databases, caches, queues.}
 {For pipelines: data sources, ingestion points.}
 
-| Service | Base URL / Connection | Purpose |
-|---------|----------------------|---------|
-| {name} | {url or connection string} | {purpose} |
+| Service | Base URL / Connection      | Purpose   |
+| ------- | -------------------------- | --------- |
+| {name}  | {url or connection string} | {purpose} |
 
 ### Events/Messages (if applicable)
 
 {Kafka topics, SQS queues, GraphQL subscriptions, WebSocket channels, webhooks — both produced and consumed.}
 
-| Direction | Channel / Topic | Payload | Purpose |
-|-----------|----------------|---------|---------|
+| Direction         | Channel / Topic | Payload               | Purpose   |
+| ----------------- | --------------- | --------------------- | --------- |
 | {PRODUCE/CONSUME} | {topic/channel} | {schema ref or shape} | {purpose} |
 
 ### Endpoints Detail
@@ -167,16 +169,16 @@ This repo does **NOT** own:
 
 When the orchestrator receives a task, use this matrix to determine if this repo is affected and whether changes in other repos are also needed.
 
-| Task Pattern | This Repo Affected? | Other Repo Change Needed? | Why |
-|---|---|---|---|
-| {pattern} | YES/NO | YES/NO/MAYBE | {reason} |
+| Task Pattern | This Repo Affected? | Other Repo Change Needed? | Why      |
+| ------------ | ------------------- | ------------------------- | -------- |
+| {pattern}    | YES/NO              | YES/NO/MAYBE              | {reason} |
 
 ## Domain Glossary
 
 Terms humans use in task descriptions. The orchestrator maps these to the correct feature area.
 
-| Term | Meaning | Maps to |
-|------|---------|---------|
+| Term   | Meaning   | Maps to                  |
+| ------ | --------- | ------------------------ |
 | {term} | {meaning} | {feature area or module} |
 
 ## Issue Format
@@ -187,26 +189,30 @@ When creating issues for this repo, the orchestrator should use this format:
 Title: <concise description of the change>
 
 ## Task
+
 <What needs to be done and why>
 
 ## Feature Area
+
 <Which module/feature is affected — use names from the Feature Areas section>
 
 ## Cross-Repo Dependencies
+
 <"None" OR link to issues in other repos that must be completed first or in parallel>
 
 ## Acceptance Criteria
+
 - [ ] <verifiable criterion 1>
 - [ ] <verifiable criterion 2>
 - [ ] <project-specific checks, e.g. "tests pass", "build succeeds", "migration runs cleanly">
-\```
+      \```
 
 The implementing agent has full access to the codebase and will determine the specific files and modules to modify. Do not include code-level implementation details in the issue.
 
 ## Tech Stack Summary
 
-| Layer | Technology |
-|-------|------------|
+| Layer   | Technology   |
+| ------- | ------------ |
 | {layer} | {technology} |
 
 ## Architecture Pattern (if applicable)
@@ -220,9 +226,9 @@ The implementing agent has full access to the codebase and will determine the sp
 ## External Links (if applicable)
 
 | Resource | Dev URL | Prod URL |
-|----------|---------|----------|
-| {name} | {url} | {url} |
-```
+| -------- | ------- | -------- |
+| {name}   | {url}   | {url}    |
+````
 
 ---
 
@@ -231,6 +237,7 @@ The implementing agent has full access to the codebase and will determine the sp
 When updating an existing wiki, check for changes since last update:
 
 **Universal:**
+
 - [ ] New feature areas or modules added
 - [ ] Features removed or deprecated
 - [ ] New external service dependencies
@@ -241,11 +248,13 @@ When updating an existing wiki, check for changes since last update:
 - [ ] Cross-repo dependency matrix still accurate
 
 **Frontend:**
+
 - [ ] New routes or sub-routes
 - [ ] New API endpoints consumed
 - [ ] New or removed real-time subscriptions
 
 **Backend API:**
+
 - [ ] New endpoints exposed
 - [ ] Endpoint contracts changed (request/response shape)
 - [ ] New database tables or migrations
@@ -253,17 +262,20 @@ When updating an existing wiki, check for changes since last update:
 - [ ] New events produced or consumed
 
 **Data Pipeline:**
+
 - [ ] New DAGs, jobs, or pipeline stages
 - [ ] New data sources or sinks
 - [ ] Schema changes in input/output data
 - [ ] Schedule changes
 
 **Library/SDK:**
+
 - [ ] Public API surface changes
 - [ ] Breaking changes introduced
 - [ ] New consumers
 
 **Infrastructure:**
+
 - [ ] New resources provisioned
 - [ ] Environment changes
 - [ ] Security/IAM changes

@@ -34,9 +34,9 @@ The following files are managed by `@hartreepartners/claude-setup` and will be *
 
 ### Step 1 — Classify Destination
 
-| Does the instruction... | Save to |
-|------------------------|---------|
-| Describe project structure, commands, onboarding, or team workflows? | `CLAUDE.local.md` (under the appropriate section) |
+| Does the instruction...                                                       | Save to                                                          |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Describe project structure, commands, onboarding, or team workflows?          | `CLAUDE.local.md` (under the appropriate section)                |
 | Apply as a coding convention, architectural pattern, or domain-specific rule? | `.claude/rules/project-rules.md` (under the appropriate section) |
 
 ### Step 2 — Check Existing Rules (Read-Only)
@@ -60,6 +60,7 @@ The following files are managed by `@hartreepartners/claude-setup` and will be *
 ### Step 4 — Confirm with Developer
 
 Before saving, show the developer:
+
 1. **Where**: which owned file and section the rule will be added to
 2. **What**: the exact formatted text to be inserted
 3. Wait for approval before writing
@@ -75,6 +76,7 @@ Before saving, show the developer:
 **Input:** "Whenever we add a new API module, always include a types.ts"
 
 **Action:** Append to `.claude/rules/project-rules.md` → "Domain-Specific Patterns":
+
 ```markdown
 - Every API module MUST contain `types.ts` with response/request types — export from barrel `index.ts`
 ```
@@ -82,6 +84,7 @@ Before saving, show the developer:
 **Input:** "Dark mode should use `.dark` class, not `prefers-color-scheme`"
 
 **Action:** Append to `.claude/rules/project-rules.md` → "General Conventions":
+
 ```markdown
 - Use `.dark` class selector for dark mode — do NOT use `prefers-color-scheme` (mode-watcher controls the class)
 ```
@@ -89,6 +92,7 @@ Before saving, show the developer:
 **Input:** "Always run check before committing"
 
 **Action:** Append to `CLAUDE.local.md` → "Lessons Learned":
+
 ```markdown
 - **Pre-commit**: Run `npm run check` before every commit to catch type errors early
 ```

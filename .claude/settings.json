@@ -36,7 +36,7 @@
 	"enableAllProjectMcpServers": true,
 	"enabledMcpjsonServers": ["svelte"],
 	"enabledPlugins": {
-		"toolkit-skills@spences10-claude-code-toolkit": true,
-		"everything-claude-code@everything-claude-code": true
+		"everything-claude-code@everything-claude-code": true,
+		"superpowers@claude-plugins-official": true
 	}
 }

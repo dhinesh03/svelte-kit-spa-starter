@@ -1,9 +1,10 @@
+import { untrack } from 'svelte';
+
 import { makeDebounce } from '$lib/helpers';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import { createGrid, type GridApi, type GridOptions } from 'ag-grid-community';
 import { colorSchemeDark, colorSchemeLight, themeQuartz } from 'ag-grid-community';
 import { mode } from 'mode-watcher';
-import { untrack } from 'svelte';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 

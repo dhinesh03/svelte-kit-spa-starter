@@ -60,6 +60,7 @@ function mergeLayoutWithTheme(currentMode: string | undefined, userLayout?: Part
 
 	const merged: AnyRecord = deepMerge(theme as AnyRecord, { font: { family: fontFamily } }, userLayout as AnyRecord);
 
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local non-reactive dedup, no template subscription
 	const axisKeys = new Set<string>();
 	for (const key of Object.keys(theme)) {
 		if (AXIS_PATTERN.test(key)) axisKeys.add(key);
